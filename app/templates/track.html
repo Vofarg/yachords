@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% from "icons.html" import icon, cover %}
+{% block title %}{{ track.title }} · Аккорды{% endblock %}
+{% block content %}
+<a class="back" href="{{ '/playlist/' ~ back if back else '/' }}">{{ icon('back') }}{{ 'К плейлисту' if back else 'Мои плейлисты' }}</a>
+<div class="track-head">
+  {{ cover(track.cover_url) }}
+  <div>
+    <h1>{{ track.title }}</h1>
+    <div class="muted">{{ track.artists }}</div>
+  </div>
+</div>
+<div class="panel notice">
+  {{ icon('note') }}
+  <div>
+    <h2>Здесь появятся аккорды</h2>
+    <p>Поиск аккордов добавим на следующем шаге.</p>
+    {% if back %}<a class="button button-accent" href="/random?kind={{ back }}">{{ icon('shuffle') }}Ещё случайный трек</a>{% endif %}
+  </div>
+</div>
+{% endblock %}

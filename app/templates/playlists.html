@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% from "icons.html" import cover %}
+{% block title %}Мои плейлисты · Аккорды{% endblock %}
+{% block content %}
+<h1>Мои плейлисты</h1>
+{% if playlists %}
+<ul class="playlist-grid">
+  {% for p in playlists %}
+  <li>
+    <a class="playlist-card" href="/playlist/{{ p.kind }}">
+      {{ cover(p.cover_url, placeholder='heart' if p.is_likes else 'note') }}
+      <div class="meta">
+        <div class="title">{{ p.title }}</div>
+        <div class="subtle">{{ p.track_count }} {{ p.track_count | plural('трек', 'трека', 'треков') }}</div>
+      </div>
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<div class="panel empty">Плейлистов пока нет. Добавьте треки в «Мне нравится» в Яндекс.Музыке.</div>
+{% endif %}
+{% endblock %}
