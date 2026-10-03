@@ -1,0 +1,52 @@
+{% from "icons.html" import icon %}
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f0f12">
+  <title>{% block title %}Аккорды{% endblock %}</title>
+  <script>
+    // Тема выбирается до отрисовки, чтобы страница не мигала светлым.
+    try { var t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap">
+  <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239a8cff' stroke-width='2'><path d='M9 18V5l12-2v13'/><circle cx='6' cy='18' r='3'/><circle cx='18' cy='16' r='3'/></svg>">
+</head>
+<body>
+  <header class="header">
+    <div class="container">
+      <a class="logo" href="/">{{ icon('guitar') }}Аккорды</a>
+      <div class="theme-switch" role="group" aria-label="Тема">
+        <button type="button" data-set-theme="light" aria-label="Светлая тема">{{ icon('sun') }}</button>
+        <button type="button" data-set-theme="dark" aria-label="Тёмная тема">{{ icon('moon') }}</button>
+      </div>
+    </div>
+  </header>
+  <main>
+    <div class="container">
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+  <script>
+    (function () {
+      var root = document.documentElement;
+      var buttons = document.querySelectorAll('[data-set-theme]');
+      function show() {
+        buttons.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.setTheme === root.dataset.theme)); });
+      }
+      buttons.forEach(function (b) {
+        b.addEventListener('click', function () {
+          root.dataset.theme = b.dataset.setTheme;
+          try { localStorage.setItem('theme', b.dataset.setTheme); } catch (e) {}
+          show();
+        });
+      });
+      show();
+    })();
+  </script>
+</body>
+</html>

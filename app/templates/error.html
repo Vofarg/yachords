@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% from "icons.html" import icon %}
+{% block title %}{{ title }} · Аккорды{% endblock %}
+{% block content %}
+<div class="panel notice">
+  {{ icon('warning') }}
+  <div>
+    <h2>{{ title }}</h2>
+    <p>{{ text }}</p>
+    {% if action %}<a class="button button-accent" href="{{ action.href }}">{{ action.label }}</a>{% endif %}
+  </div>
+</div>
+{% endblock %}

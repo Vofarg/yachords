@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "icons.html" import icon, cover %}
+{% block title %}{{ playlist.title }} · Аккорды{% endblock %}
+{% block content %}
+<a class="back" href="/">{{ icon('back') }}Мои плейлисты</a>
+<div class="playlist-head">
+  {{ cover(playlist.cover_url, placeholder='heart' if playlist.is_likes else 'note') }}
+  <div>
+    <h1>{{ playlist.title }}</h1>
+    <div class="muted">{{ tracks | length }} {{ tracks | length | plural('трек', 'трека', 'треков') }}</div>
+    {% if tracks %}
+    <a class="button button-accent" href="/random?kind={{ playlist.kind }}">{{ icon('shuffle') }}Случайный трек</a>
+    {% endif %}
+  </div>
+</div>
+{% if tracks %}
+<ul class="track-list">
+  {% for t in tracks %}
+  <li>
+    <a class="track-row" href="/track/{{ t.id }}?from={{ playlist.kind }}">
+      {{ cover(t.cover_url) }}
+      <div class="info">
+        <div class="name">{{ t.title }}</div>
+        <div class="artist">{{ t.artists }}</div>
+      </div>
+      <span class="time">{{ t.duration }}</span>
+      <span class="open" aria-hidden="true">{{ icon('chevron') }}</span>
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<div class="panel empty">Плейлист пуст. Добавьте треки в избранное в Яндекс.Музыке.</div>
+{% endif %}
+{% endblock %}
