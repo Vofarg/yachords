@@ -55,6 +55,7 @@
     var chords = root.querySelectorAll('.chord');
     var keyLabel = panel.querySelector('[data-key]');
     var capoSelect = panel.querySelector('[data-capo]');
+    var shiftBadge = panel.querySelector('[data-shift-badge]');
     var first = panel.dataset.first;
     var useH = Array.prototype.some.call(chords, function (el) { return /^H/.test(el.dataset.chord); });
     var storageKey = 'transpose:' + panel.dataset.track;
@@ -65,6 +66,10 @@
       var steps = state.shift - state.capo;
       chords.forEach(function (el) { el.textContent = shiftChord(el.dataset.chord, steps, useH); });
       keyLabel.textContent = shiftChord(first, state.shift, useH);
+      if (shiftBadge) {
+        shiftBadge.hidden = state.shift === 0;
+        shiftBadge.textContent = (state.shift > 0 ? '+' : '−') + Math.abs(state.shift);
+      }
       capoSelect.value = String(state.capo);
       panel.classList.toggle('changed', state.shift !== 0 || state.capo !== 0);
       save(storageKey, state);
