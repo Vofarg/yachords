@@ -455,6 +455,8 @@ h1 {
 
 /* Аппликатуры */
 .extras h2 { margin: var(--space-10) 0 var(--space-4); font-size: var(--text-lg); }
+.extras-top { margin-bottom: var(--space-6); }
+.extras-top h2 { margin-top: var(--space-6); }
 .diagrams {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
