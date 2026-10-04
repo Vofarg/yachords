@@ -49,8 +49,11 @@
 ├── .env.example # шаблон переменных окружения
 ├── .gitignore
 ├── requirements.txt
+├── render.yaml # настройки сервиса на Render
+├── pytest.ini
 ├── app/
-│ ├── main.py # FastAPI, роуты
+│ ├── main.py # FastAPI, роуты, страницы ошибок
+│ ├── auth.py # вход по паролю APP_PASSWORD
 │ ├── yandex.py # обёртка над yandex-music
 │ ├── chords/
 │ │ ├── parser.py # парсинг AmDm, MyChords, UG
@@ -59,17 +62,24 @@
 │ ├── models.py # pydantic-схемы
 │ └── templates/
 │ ├── base.html
+│ ├── icons.html # иконки и обложки
+│ ├── login.html
 │ ├── playlists.html
+│ ├── playlist.html
 │ ├── track.html
+│ ├── chords.html # блок аккордов, подгружается отдельно
 │ └── error.html
 ├── static/
 │ ├── style.css
 │ ├── transpose.js # транспонирование на клиенте
-│ ├── diagrams.js # svguitar-обёртка
+│ ├── diagrams.js # svguitar-обёртка и аппликатуры
 │ ├── tabs.js # генерация табов перебора
-│ └── pdf.js # экспорт в PDF
+│ ├── pdf.js # экспорт в PDF
+│ └── vendor/ # svguitar, jsPDF, html2canvas (локальные копии)
 └── tests/
-└── test_chords.py
+├── test_chords.py
+├── test_pages.py
+└── test_yandex.py
 ```
 
 ---

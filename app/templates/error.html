@@ -7,7 +7,8 @@
   <div>
     <h2>{{ title }}</h2>
     <p>{{ text }}</p>
-    {% if action %}<a class="button button-accent" href="{{ action.href }}">{{ action.label }}</a>{% endif %}
+    {% if steps %}<ol class="steps">{% for step in steps %}<li>{{ step }}</li>{% endfor %}</ol>{% endif %}
+    {% if action %}<a class="button button-accent" href="{{ action.href }}"{% if action.external %} target="_blank" rel="noopener noreferrer"{% endif %}>{{ action.label }}</a>{% endif %}
   </div>
 </div>
 {% endblock %}

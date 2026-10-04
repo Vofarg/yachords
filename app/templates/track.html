@@ -25,12 +25,16 @@
   (function () {
     var box = document.getElementById('chords');
     fetch(box.dataset.src, { credentials: 'same-origin' })
-      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+      .then(function (r) { if (!r.ok) throw new Error(String(r.status)); return r.text(); })
       .then(function (html) { box.innerHTML = html; window.setupTranspose(box); window.setupPdf(box); })
-      .catch(function () {
-        box.innerHTML = '<div class="panel notice"><div><h2>Не удалось загрузить аккорды</h2>' +
-          '<p>Проверьте интернет и обновите страницу.</p>' +
-          '<a class="button button-accent" href="">Обновить</a></div></div>';
+      .catch(function (error) {
+        // 401 — Яндекс перестал принимать токен: главная покажет, как получить новый.
+        var expired = error && error.message === '401';
+        box.innerHTML = '<div class="panel notice"><div><h2>' +
+          (expired ? 'Токен Яндекса истёк' : 'Не удалось загрузить аккорды') + '</h2><p>' +
+          (expired ? 'Нужно получить новый токен, это пара минут.' : 'Проверьте интернет и обновите страницу.') +
+          '</p><a class="button button-accent" href="' + (expired ? '/' : '') + '">' +
+          (expired ? 'Как обновить токен' : 'Обновить') + '</a></div></div>';
       });
   })();
 </script>
