@@ -8,6 +8,7 @@
 import logging
 import os
 import random
+import re
 import threading
 import time
 from typing import Callable, Optional, TypeVar
@@ -24,6 +25,12 @@ RETRIES = 2
 CACHE_SECONDS = 300
 COVER_SIZE = "400x400"
 TRACKS_BATCH = 200
+# Страница Яндекс ID, где выдают новый токен (адрес публичный, ключей в нём нет).
+TOKEN_URL = "https://oauth.yandex.ru/authorize?response_type=token&client_id=23cabbbdc6cd418abb4b39c32c41195d"
+# Слова в названии или версии трека, по которым понятно, что в нём нет слов.
+INSTRUMENTAL_RE = re.compile(
+    r"\b(instrumental|instr|инструментал\w*|минусовка|karaoke|караоке|backing track)\b", re.IGNORECASE
+)
 
 T = TypeVar("T")
 
@@ -37,7 +44,11 @@ class YandexUnavailableError(Exception):
 
 
 class NotFound(Exception):
-    """Плейлиста с таким номером нет или в нём нет треков."""
+    """Плейлиста или трека с таким номером нет."""
+
+
+class EmptyPlaylist(NotFound):
+    """Плейлист есть, но в нём нет ни одного трека."""
 
 
 _client: Optional[Client] = None
@@ -149,6 +160,11 @@ def _playlist_cover(playlist: Playlist) -> Optional[str]:
     return _cover(playlist.og_image)
 
 
+def is_instrumental(title: Optional[str], version: Optional[str]) -> bool:
+    """Похоже ли по названию и версии трека, что это инструментал (без слов)."""
+    return bool(INSTRUMENTAL_RE.search(f"{title or ''} {version or ''}"))
+
+
 def _track_info(track: Track) -> TrackInfo:
     """Переводит трек из формата библиотеки в формат сайта."""
     artists = ", ".join(a.name for a in track.artists if a.name) or "Неизвестный исполнитель"
@@ -160,6 +176,7 @@ def _track_info(track: Track) -> TrackInfo:
         artists=artists,
         duration=_format_duration(track.duration_ms),
         cover_url=_cover(track.cover_uri),
+        instrumental=is_instrumental(track.title, track.version),
     )
 
 
@@ -233,7 +250,7 @@ def random_track(kind: str) -> TrackInfo:
     """Случайный трек из плейлиста."""
     tracks = get_playlist(kind).tracks
     if not tracks:
-        raise NotFound
+        raise EmptyPlaylist
     return random.choice(tracks)
 
 

@@ -53,24 +53,41 @@ async def require_login(request: Request, call_next):
     return RedirectResponse("/login", status_code=303)
 
 
-def _error(request: Request, title: str, text: str, status: int, action: Optional[dict] = None) -> HTMLResponse:
-    """Страница с понятным сообщением об ошибке."""
+def _error(
+    request: Request,
+    title: str,
+    text: str,
+    status: int,
+    action: Optional[dict] = None,
+    steps: Optional[list[str]] = None,
+) -> HTMLResponse:
+    """Страница с понятным сообщением об ошибке и, если нужно, пошаговой инструкцией."""
     return templates.TemplateResponse(
         request,
         "error.html",
-        {"title": title, "text": text, "action": action},
+        {"title": title, "text": text, "action": action, "steps": steps or []},
         status_code=status,
     )
 
 
 @app.exception_handler(yandex.TokenError)
 async def token_error(request: Request, exc: yandex.TokenError) -> HTMLResponse:
-    """Токен Яндекса не задан или истёк."""
+    """Токен Яндекса не задан или истёк: показываем, как получить новый."""
     return _error(
         request,
         "Токен истёк",
-        "Яндекс.Музыка не принимает токен. Получите новый по инструкции из README и обновите YANDEX_MUSIC_TOKEN в настройках.",
+        "Яндекс.Музыка не принимает токен: срок его действия закончился или он ещё не задан. "
+        "Новый токен получается за пару минут:",
         401,
+        {"href": yandex.TOKEN_URL, "label": "Получить токен в Яндекс ID", "external": True},
+        [
+            "Нажмите кнопку ниже и войдите в свой аккаунт Яндекса, затем разрешите доступ.",
+            "Яндекс откроет страницу с длинным адресом. Скопируйте из адресной строки всё, "
+            "что стоит между access_token= и следующим знаком &.",
+            "На Render откройте сервис yachords → Environment, вставьте скопированное "
+            "в YANDEX_MUSIC_TOKEN и сохраните. Сайт перезапустится сам через пару минут.",
+            "Если сайт запущен на компьютере, вставьте токен в файл .env и перезапустите его.",
+        ],
     )
 
 
@@ -90,6 +107,19 @@ async def yandex_down(request: Request, exc: yandex.YandexUnavailableError) -> H
 async def not_found(request: Request, exc: yandex.NotFound) -> HTMLResponse:
     """Плейлист или трек не нашёлся."""
     return _error(request, "Ничего не нашлось", "Такого плейлиста или трека нет.", 404, {"href": "/", "label": "К плейлистам"})
+
+
+@app.exception_handler(Exception)
+async def unexpected_error(request: Request, exc: Exception) -> HTMLResponse:
+    """Любая непредвиденная ошибка: пишем подробности в лог, а человеку показываем понятную страницу."""
+    logger.exception("Непредвиденная ошибка на %s", request.url.path, exc_info=exc)
+    return _error(
+        request,
+        "Что-то пошло не так",
+        "Сайт споткнулся на этой странице. Попробуйте обновить её, а если не поможет, вернитесь к плейлистам.",
+        500,
+        {"href": "/", "label": "К плейлистам"},
+    )
 
 
 @app.get("/healthz")
@@ -148,8 +178,11 @@ def playlist(request: Request, kind: str) -> Response:
 
 @app.get("/random")
 def random_track(kind: str) -> Response:
-    """Случайный трек из плейлиста: сразу открывает его страницу."""
-    track = yandex.random_track(kind)
+    """Случайный трек из плейлиста: сразу открывает его страницу. Пустой плейлист открывается как есть."""
+    try:
+        track = yandex.random_track(kind)
+    except yandex.EmptyPlaylist:
+        return RedirectResponse(f"/playlist/{kind}", status_code=303)
     return RedirectResponse(f"/track/{track.id}?from={kind}", status_code=303)
 
 

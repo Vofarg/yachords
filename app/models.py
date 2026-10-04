@@ -27,6 +27,7 @@ class TrackInfo(BaseModel):
     artists: str
     duration: str
     cover_url: Optional[str] = None
+    instrumental: bool = False
 
 
 class PlaylistDetails(BaseModel):

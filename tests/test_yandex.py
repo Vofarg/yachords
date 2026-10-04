@@ -1,5 +1,6 @@
 """Проверки перевода данных Яндекс.Музыки в формат сайта."""
 
+import pytest
 from yandex_music import Playlist, Track
 
 from app import yandex
@@ -36,3 +37,18 @@ def test_missing_token_is_reported(monkeypatch):
     monkeypatch.delenv("YANDEX_MUSIC_TOKEN", raising=False)
     yandex.reset()
     assert yandex.check_token() is False
+
+
+@pytest.mark.parametrize(
+    "title, version, expected",
+    [
+        ("Кукушка", None, False),
+        ("Кукушка", "Instrumental", True),
+        ("Группа крови (инструментал)", None, True),
+        ("Минус на минус", None, False),
+        ("Звезда", "Karaoke Version", True),
+        ("Минусовка", "", True),
+    ],
+)
+def test_is_instrumental(title, version, expected):
+    assert yandex.is_instrumental(title, version) is expected

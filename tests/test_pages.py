@@ -63,6 +63,8 @@ def test_expired_token_shows_instructions(client, monkeypatch):
     page = client.get("/")
     assert page.status_code == 401
     assert "Токен истёк" in page.text
+    assert "oauth.yandex.ru/authorize" in page.text
+    assert "YANDEX_MUSIC_TOKEN" in page.text
 
 
 def test_password_protects_pages(client, monkeypatch):
@@ -104,3 +106,54 @@ def test_chords_block_lists_checked_sites_when_not_found(client, monkeypatch):
     assert "Аккорды не найдены" in page.text
     assert "сайт не пустил (код 403)" in page.text
     assert "data-show-tabs" in page.text
+
+
+def test_all_sites_down_says_so(client, monkeypatch):
+    from app.chords import sources
+
+    result = sources.SearchResult(checked=[("AmDm.ru", "сайт не ответил"), ("MyChords.net", "сайт не пустил (код 403)")])
+    monkeypatch.setattr(sources, "find_chords", lambda artist, title: result)
+    page = client.get("/track/1:10/chords")
+    assert "Сайты с аккордами не ответили" in page.text
+    assert "MyChords.net" in page.text
+
+
+def test_instrumental_track_shows_tabs_right_away(client, monkeypatch):
+    from app.chords import sources
+
+    instrumental = TrackInfo(id="3:30", title="Кукушка", artists="Кино", duration="6:35", instrumental=True)
+    monkeypatch.setattr(yandex, "get_track", lambda track_id: instrumental)
+    monkeypatch.setattr(sources, "find_chords", lambda artist, title: sources.SearchResult(checked=[("AmDm.ru", "нет этой песни")]))
+    page = client.get("/track/3:30/chords")
+    assert "Это инструментальный трек" in page.text
+    assert 'data-example="Am F C G">' in page.text  # без hidden: перебор виден сразу
+    assert "data-show-tabs" not in page.text
+
+
+def test_random_from_empty_playlist_opens_the_playlist(client, monkeypatch):
+    def empty(kind):
+        raise yandex.EmptyPlaylist
+
+    monkeypatch.setattr(yandex, "random_track", empty)
+    response = client.get("/random?kind=1003", follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"] == "/playlist/1003"
+
+
+def test_empty_likes_asks_to_add_tracks(client, monkeypatch):
+    monkeypatch.setattr(yandex, "get_playlist", lambda kind: PlaylistDetails(playlist=PLAYLISTS[0], tracks=[]))
+    page = client.get("/playlist/likes")
+    assert "Добавьте треки в избранное" in page.text
+    assert "/random?kind=likes" not in page.text
+
+
+def test_unexpected_error_shows_friendly_page(monkeypatch):
+    monkeypatch.delenv("APP_PASSWORD", raising=False)
+
+    def crash():
+        raise RuntimeError("сломалось")
+
+    monkeypatch.setattr(yandex, "get_playlists", crash)
+    page = TestClient(main.app, raise_server_exceptions=False).get("/")
+    assert page.status_code == 500
+    assert "Что-то пошло не так" in page.text

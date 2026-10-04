@@ -106,18 +106,21 @@
     render();
   }
 
-  /** Если аккордов не нашлось: кнопка «Показать табы» открывает перебор на примере Am – F – C – G. */
+  /** Если аккордов не нашлось: перебор на примере Am – F – C – G.
+   *  Обычно он открывается кнопкой «Показать табы», а у инструментала показан сразу. */
   function setupExample(root) {
     var button = root.querySelector('[data-show-tabs]');
     var box = root.querySelector('[data-example]');
-    if (!button || !box) return;
-    button.addEventListener('click', function () {
+    if (!box) return;
+    function show() {
       box.hidden = false;
-      button.hidden = true;
+      if (button) button.hidden = true;
       var example = box.dataset.example.split(' ');
       if (window.renderDiagrams) window.renderDiagrams(box, example, false);
       if (window.renderTabs) window.renderTabs(box, example, false);
-    });
+    }
+    if (button) button.addEventListener('click', show);
+    else show();
   }
 
   window.setupTranspose = setupTranspose;
