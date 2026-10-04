@@ -23,8 +23,15 @@
 </div>
 <div class="sheet-foot">
   <p class="source">Аккорды: <a href="{{ sheet.url }}" target="_blank" rel="noopener noreferrer">{{ sheet.source }}</a></p>
-  {% if back %}<a class="button" href="/random?kind={{ back }}">{{ icon('shuffle') }}Ещё случайный трек</a>{% endif %}
+  <button type="button" class="button" data-pdf="{{ track.artists }} - {{ track.title }}">{{ icon('download') }}Скачать PDF</button>
 </div>
+<div class="extras">
+  <h2>Аппликатуры</h2>
+  <div class="diagrams" data-diagrams></div>
+  <h2>Перебор</h2>
+  <div data-tabs></div>
+</div>
+{% if back %}<div class="sheet-foot" data-html2canvas-ignore><span></span><a class="button" href="/random?kind={{ back }}">{{ icon('shuffle') }}Ещё случайный трек</a></div>{% endif %}
 {% else %}
 <div class="panel notice">
   {{ icon('warning') }}
@@ -34,8 +41,16 @@
     <ul class="checked">
       {% for name, status in result.checked %}<li><span>{{ name }}</span><span class="subtle">{{ status }}</span></li>{% endfor %}
     </ul>
+    <button type="button" class="button button-accent" data-show-tabs>Показать табы перебора</button>
     <a class="button" href="https://amdm.ru/search/?q={{ (track.artists ~ ' ' ~ track.title) | urlencode }}" target="_blank" rel="noopener noreferrer">Найти на AmDm вручную</a>
-    {% if back %}<a class="button button-accent" href="/random?kind={{ back }}">{{ icon('shuffle') }}Ещё случайный трек</a>{% endif %}
+    {% if back %}<a class="button" href="/random?kind={{ back }}">{{ icon('shuffle') }}Ещё случайный трек</a>{% endif %}
   </div>
+</div>
+<div class="extras" data-example="Am F C G" hidden>
+  <p class="subtle">Аккордов к песне нет, поэтому перебор показан на самой частой последовательности Am – F – C – G.</p>
+  <h2>Аппликатуры</h2>
+  <div class="diagrams" data-diagrams></div>
+  <h2>Перебор</h2>
+  <div data-tabs></div>
 </div>
 {% endif %}

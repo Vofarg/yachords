@@ -1,6 +1,6 @@
 /* Стили сайта. Все цвета, размеры и отступы — только через переменные из DESIGN.md. */
 
-:root {
+:root, [data-theme="light"] {
   --color-bg:            #fafafa;
   --color-surface:       #ffffff;
   --color-surface-2:     #f2f2f5;
@@ -453,6 +453,63 @@ h1 {
 }
 .notice .button + .button { margin-left: var(--space-2); }
 
+/* Аппликатуры */
+.extras h2 { margin: var(--space-10) 0 var(--space-4); font-size: var(--text-lg); }
+.diagrams {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--space-3);
+}
+.diagram {
+  margin: 0;
+  padding: var(--space-3) var(--space-2) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  text-align: center;
+}
+.diagram svg { display: block; width: 100%; height: auto; }
+.diagram figcaption { margin-top: var(--space-1); font-family: var(--font-mono); font-weight: var(--weight-bold); }
+.diagram-missing {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  color: var(--color-text-subtle);
+  font-size: var(--text-2xl);
+}
+
+/* Табы перебора */
+.tab-block { margin-bottom: var(--space-6); }
+.tab-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-2); }
+.tab-head h3 { margin: 0; font-size: var(--text-base); }
+.button-small { min-height: calc(var(--tap-size) - var(--space-2)); padding: var(--space-1) var(--space-3); font-size: var(--text-xs); }
+.tab {
+  margin: 0 0 var(--space-2);
+  padding: var(--space-4);
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+/* Копия страницы для PDF: строится вне экрана */
+.pdf-sheet {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+  padding: var(--space-10);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-ui);
+}
+.pdf-sheet { padding: var(--space-6); }
+.pdf-sheet .sheet-wrap, .pdf-sheet .tab { overflow: visible; }
+.pdf-sheet .tab { padding: var(--space-3); font-size: var(--text-xs); }
+.pdf-sheet .diagrams { grid-template-columns: repeat(6, 1fr); }
+
 /* Телефон */
 @media (max-width: 640px) {
   main { padding-top: var(--space-6); }
@@ -481,4 +538,9 @@ h1 {
   .sheet { font-size: var(--text-xs); }
   .notice .button { width: 100%; margin: var(--space-2) 0 0; }
   .notice .button + .button { margin-left: 0; }
+
+  .diagrams { grid-template-columns: repeat(4, 1fr); gap: var(--space-2); }
+  .diagram { padding: var(--space-2) var(--space-1) var(--space-1); }
+  .tab { font-size: var(--text-xs); padding: var(--space-3); }
+  .sheet-foot .button { width: 100%; }
 }

@@ -48,7 +48,10 @@
   /** Подключает панель транспонирования внутри блока root. */
   function setupTranspose(root) {
     var panel = root.querySelector('[data-transpose]');
-    if (!panel) return;
+    if (!panel) {
+      setupExample(root);
+      return;
+    }
     var chords = root.querySelectorAll('.chord');
     var keyLabel = panel.querySelector('[data-key]');
     var capoSelect = panel.querySelector('[data-capo]');
@@ -65,7 +68,25 @@
       capoSelect.value = String(state.capo);
       panel.classList.toggle('changed', state.shift !== 0 || state.capo !== 0);
       save(storageKey, state);
+      renderExtras();
     }
+
+    /** Схемы и табы для аккордов в том виде, в каком их сейчас играть. */
+    function renderExtras() {
+      var shown = [];
+      chords.forEach(function (el) {
+        if (shown.indexOf(el.textContent) === -1) shown.push(el.textContent);
+      });
+      root.dataset.shown = JSON.stringify(shown);
+      root.dataset.useH = useH ? '1' : '';
+      if (window.renderDiagrams) window.renderDiagrams(root, shown, useH);
+      if (window.renderTabs) window.renderTabs(root, shown, useH);
+    }
+
+    // Цвета схем берутся из темы, поэтому при её смене схемы перерисовываются.
+    new MutationObserver(renderExtras).observe(document.documentElement, {
+      attributes: true, attributeFilter: ['data-theme']
+    });
 
     panel.querySelectorAll('[data-step]').forEach(function (button) {
       button.addEventListener('click', function () {
@@ -83,6 +104,20 @@
       render();
     });
     render();
+  }
+
+  /** Если аккордов не нашлось: кнопка «Показать табы» открывает перебор на примере Am – F – C – G. */
+  function setupExample(root) {
+    var button = root.querySelector('[data-show-tabs]');
+    var box = root.querySelector('[data-example]');
+    if (!button || !box) return;
+    button.addEventListener('click', function () {
+      box.hidden = false;
+      button.hidden = true;
+      var example = box.dataset.example.split(' ');
+      if (window.renderDiagrams) window.renderDiagrams(box, example, false);
+      if (window.renderTabs) window.renderTabs(box, example, false);
+    });
   }
 
   window.setupTranspose = setupTranspose;
