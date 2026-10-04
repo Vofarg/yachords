@@ -16,13 +16,17 @@
     Ищу аккорды на AmDm, MyChords и Ultimate-Guitar…
   </div>
 </div>
+<script src="{{ url_for('static', path='vendor/svguitar.umd.js') }}"></script>
+<script src="{{ url_for('static', path='diagrams.js') }}"></script>
+<script src="{{ url_for('static', path='tabs.js') }}"></script>
+<script src="{{ url_for('static', path='pdf.js') }}"></script>
 <script src="{{ url_for('static', path='transpose.js') }}"></script>
 <script>
   (function () {
     var box = document.getElementById('chords');
     fetch(box.dataset.src, { credentials: 'same-origin' })
       .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
-      .then(function (html) { box.innerHTML = html; window.setupTranspose(box); })
+      .then(function (html) { box.innerHTML = html; window.setupTranspose(box); window.setupPdf(box); })
       .catch(function () {
         box.innerHTML = '<div class="panel notice"><div><h2>Не удалось загрузить аккорды</h2>' +
           '<p>Проверьте интернет и обновите страницу.</p>' +

@@ -89,6 +89,8 @@ def test_chords_block_shows_sheet_and_transpose_panel(client, monkeypatch):
     assert page.status_code == 200
     assert 'data-chord="Am"' in page.text
     assert "data-transpose" in page.text
+    assert "data-diagrams" in page.text and "data-tabs" in page.text
+    assert 'data-pdf="Кино - Кукушка"' in page.text
     assert "AmDm.ru" in page.text
     assert "/random?kind=likes" in page.text
 
@@ -101,3 +103,4 @@ def test_chords_block_lists_checked_sites_when_not_found(client, monkeypatch):
     page = client.get("/track/1:10/chords")
     assert "Аккорды не найдены" in page.text
     assert "сайт не пустил (код 403)" in page.text
+    assert "data-show-tabs" in page.text
