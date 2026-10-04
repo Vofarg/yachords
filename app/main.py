@@ -172,7 +172,9 @@ def playlist(request: Request, kind: str) -> Response:
     """Страница плейлиста со списком треков."""
     details = yandex.get_playlist(kind)
     return templates.TemplateResponse(
-        request, "playlist.html", {"playlist": details.playlist, "tracks": details.tracks}
+        request,
+        "playlist.html",
+        {"playlist": details.playlist, "tracks": details.tracks, "unavailable": details.unavailable},
     )
 
 

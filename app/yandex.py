@@ -241,7 +241,11 @@ def get_playlist(kind: str) -> PlaylistDetails:
                 lambda: client.users_playlists(int(kind), _uid(), timeout=TIMEOUT_SECONDS), "треки плейлиста"
             )
             ids = [short.track_id for short in (playlist.tracks or [])] if playlist else []
-        return PlaylistDetails(playlist=info, tracks=_fetch_tracks(ids))
+        tracks = _fetch_tracks(ids)
+        unavailable = max(len(ids) - len(tracks), 0)
+        if unavailable:
+            logger.info("В плейлисте %s недоступно треков: %d из %d", kind, unavailable, len(ids))
+        return PlaylistDetails(playlist=info, tracks=tracks, unavailable=unavailable)
 
     return _cached(f"playlist:{kind}", load)
 
