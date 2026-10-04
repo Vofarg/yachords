@@ -68,6 +68,7 @@
 │ ├── playlist.html
 │ ├── track.html
 │ ├── chords.html # блок аккордов, подгружается отдельно
+│ ├── chordbook.html # справочник аккордов
 │ └── error.html
 ├── static/
 │ ├── style.css
@@ -75,6 +76,7 @@
 │ ├── diagrams.js # svguitar-обёртка и аппликатуры
 │ ├── tabs.js # генерация табов перебора
 │ ├── pdf.js # экспорт в PDF
+│ ├── chordbook.js # справочник аккордов
 │ └── vendor/ # svguitar, jsPDF, html2canvas (локальные копии)
 └── tests/
 ├── test_chords.py

@@ -196,6 +196,12 @@ def _back_kind(request: Request) -> Optional[str]:
     return None
 
 
+@app.get("/chordbook", response_class=HTMLResponse)
+def chordbook(request: Request) -> Response:
+    """Справочник аккордов: все виды аккордов от каждой ноты со схемами."""
+    return templates.TemplateResponse(request, "chordbook.html", {})
+
+
 @app.get("/track/{track_id}", response_class=HTMLResponse)
 def track(request: Request, track_id: str) -> Response:
     """Страница трека. Аккорды подгружаются отдельно, чтобы страница открывалась сразу."""
