@@ -146,6 +146,20 @@ img { display: block; max-width: 100%; }
 }
 .logo svg { width: var(--icon-size); height: var(--icon-size); color: var(--color-accent); }
 
+.nav { margin-left: auto; margin-right: var(--space-3); }
+.nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: calc(var(--tap-size) - var(--space-2));
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+.nav a:hover { color: var(--color-text); }
+.nav a[aria-current="page"] { background: var(--color-surface-2); color: var(--color-text); }
+
 .theme-switch {
   display: flex;
   gap: var(--space-1);
@@ -476,6 +490,61 @@ h1 {
 }
 .diagram svg { display: block; width: 100%; height: auto; }
 .diagram figcaption { margin-top: var(--space-1); font-family: var(--font-mono); font-weight: var(--weight-bold); }
+.diagram-note {
+  display: block;
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  color: var(--color-text-muted);
+}
+
+/* Справочник аккордов */
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.chordbook-intro { margin: 0 0 var(--space-6); max-width: 60ch; }
+.chord-search { display: flex; gap: var(--space-2); margin-bottom: var(--space-2); }
+.chord-search input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--tap-size);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+.chord-search input:focus { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+.chord-search-error { margin: 0 0 var(--space-2); }
+.note-picker {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: var(--space-1);
+  margin: var(--space-4) 0 var(--space-6);
+}
+.note-picker button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: var(--tap-size);
+  padding: var(--space-2) 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+.note-picker button b { font-family: var(--font-mono); }
+.note-picker button span { font-size: var(--text-xs); color: var(--color-text-muted); }
+.note-picker button[aria-selected="true"] { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-on-accent); }
+.note-picker button[aria-selected="true"] span { color: var(--color-on-accent); }
+.chordbook-item h2 { display: flex; align-items: baseline; gap: var(--space-3); margin: var(--space-8) 0 var(--space-3); font-size: var(--text-lg); }
+.chordbook-item:first-child h2 { margin-top: 0; }
+.chordbook-name { font-family: var(--font-mono); color: var(--color-chord); }
+.chordbook-item .diagrams { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+.chordbook > .button { margin-top: var(--space-6); }
+
 .diagram-missing {
   display: grid;
   place-items: center;
@@ -546,6 +615,9 @@ h1 {
   .notice .button + .button { margin-left: 0; }
 
   .diagrams { grid-template-columns: repeat(4, 1fr); gap: var(--space-2); }
+  .chordbook-item .diagrams { grid-template-columns: repeat(3, 1fr); }
+  .note-picker { grid-template-columns: repeat(6, 1fr); }
+  .nav { margin-right: var(--space-2); }
   .diagram { padding: var(--space-2) var(--space-1) var(--space-1); }
   .tab { font-size: var(--text-xs); padding: var(--space-3); }
   .sheet-foot .button { width: 100%; }

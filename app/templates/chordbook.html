@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Справочник аккордов · Аккорды{% endblock %}
+{% block content %}
+<h1>Справочник аккордов</h1>
+<p class="muted chordbook-intro">Выберите ноту, и появятся все её аккорды. У многих аккордов есть несколько способов их взять: первый — самый привычный, следующие — выше по грифу.</p>
+<form class="chord-search" data-chord-search>
+  <label class="visually-hidden" for="chord-query">Найти аккорд</label>
+  <input id="chord-query" name="q" type="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Например, Am7 или F#m">
+  <button type="submit" class="button button-accent">Найти</button>
+</form>
+<p class="subtle chord-search-error" data-search-error hidden></p>
+<div class="note-picker" role="tablist" aria-label="Нота" data-notes></div>
+<div class="chordbook" data-chordbook aria-live="polite"></div>
+<script src="{{ url_for('static', path='vendor/svguitar.umd.js') }}"></script>
+<script src="{{ url_for('static', path='diagrams.js') }}"></script>
+<script src="{{ url_for('static', path='chordbook.js') }}"></script>
+{% endblock %}

@@ -157,3 +157,11 @@ def test_unexpected_error_shows_friendly_page(monkeypatch):
     page = TestClient(main.app, raise_server_exceptions=False).get("/")
     assert page.status_code == 500
     assert "Что-то пошло не так" in page.text
+
+
+def test_chordbook_page_opens_and_is_linked_from_header(client):
+    page = client.get("/chordbook")
+    assert page.status_code == 200
+    assert "Справочник аккордов" in page.text
+    assert "chordbook.js" in page.text
+    assert 'href="/chordbook"' in client.get("/").text

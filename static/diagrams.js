@@ -19,13 +19,14 @@
   // Подвижные формы: смещения ладов от ноты на 6-й (E) или 5-й (A) струне.
   var E_SHAPES = {
     '': [0, 2, 2, 1, 0, 0], m: [0, 2, 2, 0, 0, 0], '7': [0, 2, 0, 1, 0, 0], m7: [0, 2, 0, 0, 0, 0],
+    maj7: [0, null, 1, 1, 0, null], '6': [0, 2, 2, 1, 2, 0], m6: [0, 2, 2, 0, 2, 0],
     sus4: [0, 2, 2, 2, 0, 0], aug: [0, 3, 2, 1, 1, 0], '5': [0, 2, 2, null, null, null]
   };
   var A_SHAPES = {
     '': [null, 0, 2, 2, 2, 0], m: [null, 0, 2, 2, 1, 0], '7': [null, 0, 2, 0, 2, 0], m7: [null, 0, 2, 0, 1, 0],
     maj7: [null, 0, 2, 1, 2, 0], sus2: [null, 0, 2, 2, 0, 0], sus4: [null, 0, 2, 2, 3, 0],
     dim: [null, 0, 1, 2, 1, null], '6': [null, 0, 2, 2, 2, 2], m6: [null, 0, 2, 2, 1, 2],
-    aug: [null, 0, 3, 2, 2, 1], '5': [null, 0, 2, 2, null, null]
+    aug: [null, 0, 3, 2, 2, 1], '5': [null, 0, 2, 2, null, null], add9: [null, 0, 2, 4, 2, 0]
   };
   var NOTE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11, H: 11 };
   var NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -67,7 +68,7 @@
     if (!chord) return null;
     var key = NAMES[chord.note] + (chord.kind === '' ? '' : chord.kind);
     if (OPEN_SHAPES[key]) return fromString(OPEN_SHAPES[key]);
-    var kind = chord.kind === 'add9' ? '' : chord.kind;
+    var kind = chord.kind;
     var eRoot = (chord.note - 4 + 12) % 12;
     var aRoot = (chord.note - 9 + 12) % 12;
     var candidates = [];
@@ -81,6 +82,38 @@
     candidates.sort(function (a, b) { return a.root - b.root; });
     var best = candidates[0];
     return best.base.map(function (offset) { return offset === null ? null : offset + best.root; });
+  }
+
+  /** Все удобные способы взять аккорд (до трёх): привычный, затем формы от 6-й и 5-й струны.
+   *  Первым всегда идёт тот же вариант, что показывается у песни. */
+  function shapes(name, useH) {
+    var main = shape(name, useH);
+    if (!main) return [];
+    var chord = parse(name, useH);
+    var result = [main];
+    var seen = {};
+    seen[main.join(',')] = true;
+    function add(frets) {
+      var key = frets.join(',');
+      if (!seen[key]) { seen[key] = true; result.push(frets); }
+    }
+    var eRoot = (chord.note - 4 + 12) % 12;
+    var aRoot = (chord.note - 9 + 12) % 12;
+    var movable = [];
+    [[E_SHAPES[chord.kind], eRoot], [A_SHAPES[chord.kind], aRoot]].forEach(function (pair) {
+      if (!pair[0]) return;
+      movable.push({ base: pair[0], root: pair[1] });
+      // Та же форма октавой выше, если внизу она совпадает с открытым аккордом.
+      if (pair[1] < 3) movable.push({ base: pair[0], root: pair[1] + 12 });
+    });
+    movable.sort(function (a, b) { return a.root - b.root; });
+    movable.forEach(function (m) {
+      add(m.base.map(function (offset) { return offset === null ? null : offset + m.root; }));
+    });
+    return result.filter(function (frets) {
+      var pressed = frets.filter(function (f) { return f; });
+      return !pressed.length || Math.max.apply(null, pressed) <= 15;
+    }).slice(0, 3);
   }
 
   /** Переводит аппликатуру в формат библиотеки svguitar (струна 1 — тонкая). */
@@ -117,41 +150,63 @@
     return getComputedStyle(element).getPropertyValue(name).trim();
   }
 
+  /** Цвета и шрифт текущей темы для схем, взятые из переменных CSS элемента. */
+  function themeOf(element) {
+    return {
+      text: cssVar(element, '--color-text'),
+      muted: cssVar(element, '--color-text-muted'),
+      accent: cssVar(element, '--color-accent'),
+      font: cssVar(element, '--font-ui')
+    };
+  }
+
+  /** Добавляет в box карточку со схемой: аппликатура frets, подпись и необязательная пояснительная строка. */
+  function drawChord(box, frets, caption, note, theme) {
+    theme = theme || themeOf(box);
+    var card = document.createElement('figure');
+    card.className = 'diagram';
+    var holder = document.createElement('div');
+    card.appendChild(holder);
+    var label = document.createElement('figcaption');
+    label.textContent = caption;
+    if (note) {
+      var small = document.createElement('span');
+      small.className = 'diagram-note';
+      small.textContent = note;
+      label.appendChild(small);
+    }
+    card.appendChild(label);
+    box.appendChild(card);
+    if (!frets) {
+      holder.className = 'diagram-missing';
+      holder.textContent = '?';
+      return card;
+    }
+    new window.svguitar.SVGuitarChord(holder)
+      .configure({
+        strings: 6, frets: 4, fontFamily: theme.font, color: theme.text, stringColor: theme.muted,
+        fretColor: theme.muted, fingerColor: theme.accent, fingerTextColor: theme.text, titleColor: theme.text,
+        backgroundColor: 'none', fingerSize: 0.7, strokeWidth: 2, emptyStringIndicatorSize: 0.6,
+        fixedDiagramPosition: true
+      })
+      .chord(toSvguitar(frets))
+      .draw();
+    return card;
+  }
+
   /** Рисует схемы всех аккордов песни в блок [data-diagrams]. */
   function renderDiagrams(root, chords, useH) {
     var box = root.querySelector('[data-diagrams]');
     if (!box || !window.svguitar) return;
     box.innerHTML = '';
-    var text = cssVar(box, '--color-text');
-    var muted = cssVar(box, '--color-text-muted');
-    var accent = cssVar(box, '--color-accent');
-    var font = cssVar(box, '--font-ui');
+    var theme = themeOf(box);
     chords.forEach(function (name) {
-      var frets = shape(name, useH);
-      var card = document.createElement('figure');
-      card.className = 'diagram';
-      var holder = document.createElement('div');
-      card.appendChild(holder);
-      var caption = document.createElement('figcaption');
-      caption.textContent = name;
-      card.appendChild(caption);
-      box.appendChild(card);
-      if (!frets) {
-        holder.className = 'diagram-missing';
-        holder.textContent = '?';
-        return;
-      }
-      new window.svguitar.SVGuitarChord(holder)
-        .configure({
-          strings: 6, frets: 4, fontFamily: font, color: text, stringColor: muted, fretColor: muted,
-          fingerColor: accent, fingerTextColor: text, titleColor: text, backgroundColor: 'none',
-          fingerSize: 0.7, strokeWidth: 2, emptyStringIndicatorSize: 0.6, fixedDiagramPosition: true
-        })
-        .chord(toSvguitar(frets))
-        .draw();
+      drawChord(box, shape(name, useH), name, '', theme);
     });
   }
 
   window.chordShape = shape;
+  window.chordShapes = shapes;
+  window.drawChord = drawChord;
   window.renderDiagrams = renderDiagrams;
 })();
