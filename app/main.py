@@ -14,6 +14,7 @@ from fastapi.templating import Jinja2Templates
 load_dotenv()
 
 from app import auth, yandex  # noqa: E402  (настройки из .env должны загрузиться раньше)
+from app.chords import sources  # noqa: E402
 from app.models import LIKES_KIND  # noqa: E402
 
 logging.basicConfig(
@@ -152,10 +153,26 @@ def random_track(kind: str) -> Response:
     return RedirectResponse(f"/track/{track.id}?from={kind}", status_code=303)
 
 
+def _back_kind(request: Request) -> Optional[str]:
+    """Плейлист, из которого пришли на трек (для кнопок «назад» и «ещё случайный»)."""
+    back = request.query_params.get("from")
+    if back and (back.isdigit() or back == LIKES_KIND):
+        return back
+    return None
+
+
 @app.get("/track/{track_id}", response_class=HTMLResponse)
 def track(request: Request, track_id: str) -> Response:
-    """Страница трека. Аккорды появятся на следующем шаге."""
-    back = request.query_params.get("from")
-    if back and not (back.isdigit() or back == LIKES_KIND):
-        back = None
+    """Страница трека. Аккорды подгружаются отдельно, чтобы страница открывалась сразу."""
+    back = _back_kind(request)
     return templates.TemplateResponse(request, "track.html", {"track": yandex.get_track(track_id), "back": back})
+
+
+@app.get("/track/{track_id}/chords", response_class=HTMLResponse)
+def track_chords(request: Request, track_id: str) -> Response:
+    """Блок с аккордами для страницы трека: ищет песню на сайтах с аккордами."""
+    song = yandex.get_track(track_id)
+    result = sources.find_chords(song.artists, song.title)
+    return templates.TemplateResponse(
+        request, "chords.html", {"result": result, "track": song, "back": _back_kind(request)}
+    )

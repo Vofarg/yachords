@@ -1,0 +1,41 @@
+{# Блок с аккордами: подгружается на страницу трека отдельным запросом. #}
+{% from "icons.html" import icon %}
+{% set sheet = result.sheet %}
+{% if sheet %}
+<div class="transpose" data-transpose data-track="{{ track.id }}" data-first="{{ sheet.chords[0] }}">
+  <div class="transpose-row">
+    <button type="button" class="step" data-step="-1" aria-label="На полтона ниже">−1</button>
+    <span class="key" data-key aria-live="polite">{{ sheet.chords[0] }}</span>
+    <button type="button" class="step" data-step="1" aria-label="На полтона выше">+1</button>
+    <button type="button" class="reset" data-reset>Сброс</button>
+  </div>
+  <label class="capo">
+    Каподастр
+    <select data-capo>
+      <option value="0">нет</option>
+      {% for fret in range(1, 8) %}<option value="{{ fret }}">{{ fret }} лад</option>{% endfor %}
+    </select>
+  </label>
+</div>
+<div class="sheet-wrap">
+<pre class="sheet">{% for line in sheet.lines %}<span class="line line-{{ line.kind }}">{% for t in line.tokens %}{% if t.is_chord %}<b class="chord" data-chord="{{ t.text }}">{{ t.text }}</b>{% else %}{{ t.text }}{% endif %}{% endfor %}</span>
+{% endfor %}</pre>
+</div>
+<div class="sheet-foot">
+  <p class="source">Аккорды: <a href="{{ sheet.url }}" target="_blank" rel="noopener noreferrer">{{ sheet.source }}</a></p>
+  {% if back %}<a class="button" href="/random?kind={{ back }}">{{ icon('shuffle') }}Ещё случайный трек</a>{% endif %}
+</div>
+{% else %}
+<div class="panel notice">
+  {{ icon('warning') }}
+  <div>
+    <h2>{{ 'Сайты с аккордами не ответили' if result.all_failed else 'Аккорды не найдены' }}</h2>
+    <p>{{ 'Попробуйте обновить страницу чуть позже.' if result.all_failed else 'Ни на одном сайте нет этой песни.' }}</p>
+    <ul class="checked">
+      {% for name, status in result.checked %}<li><span>{{ name }}</span><span class="subtle">{{ status }}</span></li>{% endfor %}
+    </ul>
+    <a class="button" href="https://amdm.ru/search/?q={{ (track.artists ~ ' ' ~ track.title) | urlencode }}" target="_blank" rel="noopener noreferrer">Найти на AmDm вручную</a>
+    {% if back %}<a class="button button-accent" href="/random?kind={{ back }}">{{ icon('shuffle') }}Ещё случайный трек</a>{% endif %}
+  </div>
+</div>
+{% endif %}
