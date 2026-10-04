@@ -52,7 +52,7 @@ def test_random_opens_a_track_from_the_playlist(client):
 def test_track_page_ignores_strange_back_link(client):
     page = client.get('/track/1:10?from="><script>')
     assert page.status_code == 200
-    assert "<script>" not in page.text.split("<main>")[1].split("</main>")[0]
+    assert '"><script>' not in page.text
 
 
 def test_expired_token_shows_instructions(client, monkeypatch):
@@ -78,3 +78,26 @@ def test_password_protects_pages(client, monkeypatch):
 )
 def test_plural(n, word):
     assert main.plural(n, "трек", "трека", "треков") == word
+
+
+def test_chords_block_shows_sheet_and_transpose_panel(client, monkeypatch):
+    from app.chords import normalize, sources
+
+    sheet = normalize.build_sheet("\x01Am\x02  \x01F\x02\nПесен ещё ненаписанных", "AmDm.ru", "https://amdm.ru/x/")
+    monkeypatch.setattr(sources, "find_chords", lambda artist, title: sources.SearchResult(sheet=sheet))
+    page = client.get("/track/1:10/chords?from=likes")
+    assert page.status_code == 200
+    assert 'data-chord="Am"' in page.text
+    assert "data-transpose" in page.text
+    assert "AmDm.ru" in page.text
+    assert "/random?kind=likes" in page.text
+
+
+def test_chords_block_lists_checked_sites_when_not_found(client, monkeypatch):
+    from app.chords import sources
+
+    result = sources.SearchResult(checked=[("AmDm.ru", "нет этой песни"), ("Ultimate-Guitar.com", "сайт не пустил (код 403)")])
+    monkeypatch.setattr(sources, "find_chords", lambda artist, title: result)
+    page = client.get("/track/1:10/chords")
+    assert "Аккорды не найдены" in page.text
+    assert "сайт не пустил (код 403)" in page.text

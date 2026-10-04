@@ -85,11 +85,11 @@ LOG_LEVEL=INFO
 ```
 
 **Как добыть токен (инструкция для пользователя):**
-1. Открыть music.yandex.ru, залогиниться
-2. DevTools → Network → фильтр `api`
-3. Найти любой запрос к `api.music.yandex.net`, скопировать заголовок `Authorization: OAuth ...`
-4. Вставить значение после `OAuth ` в `YANDEX_MUSIC_TOKEN`
-5. UID виден в том же запросе в параметре `uid`
+Через вход по Яндекс ID (способ через DevTools перестал работать в 2026):
+1. Открыть https://oauth.yandex.ru/authorize?response_type=token&client_id=23cabbbdc6cd418abb4b39c32c41195d
+2. Разрешить доступ
+3. Скопировать значение `access_token` из адреса, на который перекинет Яндекс
+4. Вставить в `YANDEX_MUSIC_TOKEN`. UID можно не указывать — он узнаётся по токену
 
 ---
 

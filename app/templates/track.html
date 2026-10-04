@@ -10,12 +10,24 @@
     <div class="muted">{{ track.artists }}</div>
   </div>
 </div>
-<div class="panel notice">
-  {{ icon('note') }}
-  <div>
-    <h2>Здесь появятся аккорды</h2>
-    <p>Поиск аккордов добавим на следующем шаге.</p>
-    {% if back %}<a class="button button-accent" href="/random?kind={{ back }}">{{ icon('shuffle') }}Ещё случайный трек</a>{% endif %}
+<div id="chords" data-src="/track/{{ track.id }}/chords{{ '?from=' ~ back if back else '' }}">
+  <div class="panel loading" role="status">
+    <span class="spinner" aria-hidden="true"></span>
+    Ищу аккорды на AmDm, MyChords и Ultimate-Guitar…
   </div>
 </div>
+<script src="{{ url_for('static', path='transpose.js') }}"></script>
+<script>
+  (function () {
+    var box = document.getElementById('chords');
+    fetch(box.dataset.src, { credentials: 'same-origin' })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+      .then(function (html) { box.innerHTML = html; window.setupTranspose(box); })
+      .catch(function () {
+        box.innerHTML = '<div class="panel notice"><div><h2>Не удалось загрузить аккорды</h2>' +
+          '<p>Проверьте интернет и обновите страницу.</p>' +
+          '<a class="button button-accent" href="">Обновить</a></div></div>';
+      });
+  })();
+</script>
 {% endblock %}
