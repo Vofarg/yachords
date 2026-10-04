@@ -35,3 +35,5 @@ class PlaylistDetails(BaseModel):
 
     playlist: PlaylistInfo
     tracks: list[TrackInfo]
+    # Треки, которые есть в плейлисте, но Яндекс их больше не отдаёт (удалены или недоступны).
+    unavailable: int = 0

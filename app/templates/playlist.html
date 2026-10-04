@@ -7,7 +7,9 @@
   {{ cover(playlist.cover_url, placeholder='heart' if playlist.is_likes else 'note') }}
   <div>
     <h1>{{ playlist.title }}</h1>
-    <div class="muted">{{ tracks | length }} {{ tracks | length | plural('трек', 'трека', 'треков') }}</div>
+    {% set total = tracks | length + unavailable %}
+    <div class="muted">{{ total }} {{ total | plural('трек', 'трека', 'треков') }}{% if unavailable %}, из них {{ unavailable }} {{ unavailable | plural('недоступен', 'недоступны', 'недоступны') }}{% endif %}</div>
+    {% if unavailable %}<div class="subtle unavailable-note">Недоступные треки удалены из Яндекс.Музыки или скрыты правообладателем, поэтому их здесь нет.</div>{% endif %}
     {% if tracks %}
     <a class="button button-accent" href="/random?kind={{ playlist.kind }}">{{ icon('shuffle') }}Случайный трек</a>
     {% endif %}

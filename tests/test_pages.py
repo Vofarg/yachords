@@ -157,3 +157,10 @@ def test_unexpected_error_shows_friendly_page(monkeypatch):
     page = TestClient(main.app, raise_server_exceptions=False).get("/")
     assert page.status_code == 500
     assert "Что-то пошло не так" in page.text
+
+
+def test_playlist_counts_unavailable_tracks_like_the_home_page(client, monkeypatch):
+    details = PlaylistDetails(playlist=PLAYLISTS[0], tracks=TRACKS, unavailable=3)
+    monkeypatch.setattr(yandex, "get_playlist", lambda kind: details)
+    page = client.get("/playlist/likes")
+    assert "5 треков, из них 3 недоступны" in page.text

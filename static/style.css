@@ -266,6 +266,7 @@ h1 {
 }
 .playlist-head .cover { flex: none; width: var(--cover-lg); height: var(--cover-lg); border-radius: var(--radius-lg); }
 .playlist-head h1 { margin-bottom: var(--space-1); }
+.unavailable-note { margin: var(--space-1) 0 var(--space-3); }
 .playlist-head .button { margin-top: var(--space-4); }
 
 .track-list { margin: 0; padding: 0; list-style: none; }
