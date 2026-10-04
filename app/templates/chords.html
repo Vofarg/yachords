@@ -17,6 +17,10 @@
     </select>
   </label>
 </div>
+<div class="extras extras-top">
+  <h2>Аппликатуры</h2>
+  <div class="diagrams" data-diagrams></div>
+</div>
 <div class="sheet-wrap">
 <pre class="sheet">{% for line in sheet.lines %}<span class="line line-{{ line.kind }}">{% for t in line.tokens %}{% if t.is_chord %}<b class="chord" data-chord="{{ t.text }}">{{ t.text }}</b>{% else %}{{ t.text }}{% endif %}{% endfor %}</span>
 {% endfor %}</pre>
@@ -26,8 +30,6 @@
   <button type="button" class="button" data-pdf="{{ track.artists }} - {{ track.title }}">{{ icon('download') }}Скачать PDF</button>
 </div>
 <div class="extras">
-  <h2>Аппликатуры</h2>
-  <div class="diagrams" data-diagrams></div>
   <h2>Перебор</h2>
   <div data-tabs></div>
 </div>

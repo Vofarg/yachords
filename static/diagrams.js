@@ -12,7 +12,7 @@
     Am7: 'x02010', Dm7: 'xx0211', Em7: '022030',
     Cmaj7: 'x32000', Dmaj7: 'xx0222', Fmaj7: 'xx3210', Gmaj7: '320002', Amaj7: 'x02120',
     Dsus2: 'xx0230', Dsus4: 'xx0233', Asus2: 'x02200', Asus4: 'x02230', Esus4: '022200',
-    Csus2: 'x30013', Csus4: 'x33011', Gsus4: '320013',
+    Csus2: 'x30013', Csus4: 'x33011', Gsus4: '330013',
     Cadd9: 'x32033', A6: 'x02222', D6: 'xx0202', E5: '022xxx', A5: 'x022xx'
   };
 
@@ -92,12 +92,16 @@
     var fingers = [];
     var barres = [];
     var barreFret = null;
-    // Баррэ: самый нижний лад зажат на нескольких струнах, включая 1-ю.
-    var onMin = frets.filter(function (f) { return f === min && f > 0; }).length;
-    if (onMin >= 2 && frets[5] === min && min > 0) {
-      var first = frets.indexOf(min);
+    // Баррэ — только когда один палец прижимает все звучащие струны от басовой до 1-й:
+    // басовая и 1-я струны на самом нижнем ладу, и между ними нет открытых струн.
+    // Так у Ре (xx0232) два пальца на 2-м ладу не превращаются в ложное баррэ.
+    var bass = frets.findIndex(function (f) { return f !== null; });
+    var covered = frets.slice(bass);
+    var isBarre = min > 0 && frets[bass] === min && frets[5] === min &&
+      covered.every(function (f) { return f !== null && f >= min; });
+    if (isBarre) {
       barreFret = min;
-      barres.push({ fromString: 6 - first, toString: 1, fret: min - position + 1 });
+      barres.push({ fromString: 6 - bass, toString: 1, fret: min - position + 1 });
     }
     frets.forEach(function (fret, i) {
       var string = 6 - i;
