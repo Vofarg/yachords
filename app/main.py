@@ -210,10 +210,16 @@ def track(request: Request, track_id: str) -> Response:
 
 
 @app.get("/track/{track_id}/chords", response_class=HTMLResponse)
-def track_chords(request: Request, track_id: str) -> Response:
-    """Блок с аккордами для страницы трека: ищет песню на сайтах с аккордами."""
+def track_chords(request: Request, track_id: str, url: str = "") -> Response:
+    """Блок с аккордами для страницы трека: ищет песню на сайтах с аккордами.
+
+    Если передана ссылка url (её вставили вручную), аккорды берутся прямо с неё.
+    """
     song = yandex.get_track(track_id)
-    result = sources.find_chords(song.artists, song.title)
+    if url:
+        result = sources.chords_from_url(url)
+    else:
+        result = sources.find_chords(song.artists, song.title)
     return templates.TemplateResponse(
         request, "chords.html", {"result": result, "track": song, "back": _back_kind(request)}
     )

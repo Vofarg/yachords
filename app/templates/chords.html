@@ -1,7 +1,19 @@
 {# Блок с аккордами: подгружается на страницу трека отдельным запросом. #}
 {% from "icons.html" import icon %}
 {% set sheet = result.sheet %}
+{% macro manual_form(open=False, label='Не те аккорды? Вставьте свою ссылку') -%}
+<details class="manual-link" data-html2canvas-ignore{% if open %} open{% endif %}>
+  <summary>{{ label }}</summary>
+  <form data-manual-form>
+    <label class="visually-hidden" for="manual-url">Ссылка на аккорды</label>
+    <input id="manual-url" name="url" type="url" inputmode="url" autocomplete="off" required placeholder="https://amdm.ru/akkordi/…">
+    <button type="submit" class="button button-accent">Показать</button>
+  </form>
+  <p class="subtle">Подойдёт ссылка на страницу песни на AmDm.ru, MyChords.net или Ultimate-Guitar.com. Сайт запомнит её для этой песни на этом устройстве.</p>
+</details>
+{%- endmacro %}
 {% if sheet %}
+{% if result.manual %}<div class="manual-note" data-html2canvas-ignore><span>Аккорды по вашей ссылке</span><button type="button" class="button button-small" data-manual-reset>Вернуть автоматический поиск</button></div>{% endif %}
 {% if track.instrumental %}<p class="subtle instrumental-note">Это инструментальная версия: слов в ней нет, но аккорды и перебор подходят.</p>{% endif %}
 <div class="transpose" data-transpose data-track="{{ track.id }}" data-first="{{ sheet.chords[0] }}">
   <div class="transpose-row">
@@ -31,11 +43,22 @@
   <p class="source">Аккорды: <a href="{{ sheet.url }}" target="_blank" rel="noopener noreferrer">{{ sheet.source }}</a></p>
   <button type="button" class="button" data-pdf="{{ track.artists }} - {{ track.title }}">{{ icon('download') }}Скачать PDF</button>
 </div>
+{{ manual_form(label='Другая ссылка на аккорды' if result.manual else 'Не те аккорды? Вставьте свою ссылку') }}
 <div class="extras">
   <h2>Перебор</h2>
   <div data-tabs></div>
 </div>
 {% if back %}<div class="sheet-foot" data-html2canvas-ignore><span></span><a class="button" href="/random?kind={{ back }}">{{ icon('shuffle') }}Ещё случайный трек</a></div>{% endif %}
+{% elif result.manual %}
+<div class="panel notice">
+  {{ icon('warning') }}
+  <div>
+    <h2>Не получилось открыть аккорды по ссылке</h2>
+    <p>{{ result.manual_error }}</p>
+    {{ manual_form(open=True, label='Вставить другую ссылку') }}
+    <button type="button" class="button" data-manual-reset>Вернуть автоматический поиск</button>
+  </div>
+</div>
 {% elif track.instrumental %}
 <div class="panel notice">
   {{ icon('warning') }}
@@ -44,6 +67,7 @@
     <p>В нём нет слов, поэтому аккордов к тексту на сайтах для него не нашлось. Ниже перебор на самой частой последовательности, его можно играть как аккомпанемент.</p>
     <a class="button" href="https://amdm.ru/search/?q={{ (track.artists ~ ' ' ~ track.title) | urlencode }}" target="_blank" rel="noopener noreferrer">Найти на AmDm вручную</a>
     {% if back %}<a class="button" href="/random?kind={{ back }}">{{ icon('shuffle') }}Ещё случайный трек</a>{% endif %}
+    {{ manual_form(label='Нашли аккорды сами? Вставьте ссылку') }}
   </div>
 </div>
 <div class="extras" data-example="Am F C G">
@@ -64,6 +88,7 @@
     <button type="button" class="button button-accent" data-show-tabs>Показать табы перебора</button>
     <a class="button" href="https://amdm.ru/search/?q={{ (track.artists ~ ' ' ~ track.title) | urlencode }}" target="_blank" rel="noopener noreferrer">Найти на AmDm вручную</a>
     {% if back %}<a class="button" href="/random?kind={{ back }}">{{ icon('shuffle') }}Ещё случайный трек</a>{% endif %}
+    {{ manual_form(open=True, label='Нашли аккорды сами? Вставьте ссылку') }}
   </div>
 </div>
 <div class="extras" data-example="Am F C G" hidden>
