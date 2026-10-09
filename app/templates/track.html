@@ -10,7 +10,7 @@
     <div class="muted">{{ track.artists }}</div>
   </div>
 </div>
-<div id="chords" data-src="/track/{{ track.id }}/chords{{ '?from=' ~ back if back else '' }}">
+<div id="chords" data-src="/track/{{ track.id }}/chords{{ '?from=' ~ back if back else '' }}" data-track="{{ track.id }}">
   <div class="panel loading" role="status">
     <span class="spinner" aria-hidden="true"></span>
     Ищу аккорды на AmDm, MyChords и Ultimate-Guitar…
@@ -24,18 +24,71 @@
 <script>
   (function () {
     var box = document.getElementById('chords');
-    fetch(box.dataset.src, { credentials: 'same-origin' })
-      .then(function (r) { if (!r.ok) throw new Error(String(r.status)); return r.text(); })
-      .then(function (html) { box.innerHTML = html; window.setupTranspose(box); window.setupPdf(box); })
-      .catch(function (error) {
-        // 401 — Яндекс перестал принимать токен: главная покажет, как получить новый.
-        var expired = error && error.message === '401';
-        box.innerHTML = '<div class="panel notice"><div><h2>' +
-          (expired ? 'Токен Яндекса истёк' : 'Не удалось загрузить аккорды') + '</h2><p>' +
-          (expired ? 'Нужно получить новый токен, это пара минут.' : 'Проверьте интернет и обновите страницу.') +
-          '</p><a class="button button-accent" href="' + (expired ? '/' : '') + '">' +
-          (expired ? 'Как обновить токен' : 'Обновить') + '</a></div></div>';
+    // Ссылка на аккорды, вставленная вручную, хранится в браузере отдельно для каждой песни.
+    var storageKey = 'chords-url:' + box.dataset.track;
+
+    function savedUrl() {
+      try { return localStorage.getItem(storageKey) || ''; } catch (e) { return ''; }
+    }
+    function remember(url) {
+      try {
+        if (url) localStorage.setItem(storageKey, url); else localStorage.removeItem(storageKey);
+      } catch (e) { /* без памяти ссылка сработает один раз */ }
+    }
+
+    function spinner(text) {
+      box.innerHTML = '<div class="panel loading" role="status"><span class="spinner" aria-hidden="true"></span></div>';
+      box.firstChild.appendChild(document.createTextNode(text));
+    }
+
+    /** Загружает блок аккордов: по сохранённой ссылке или обычным поиском. */
+    function load(oneTimeUrl) {
+      var url = oneTimeUrl || savedUrl();
+      var src = box.dataset.src;
+      if (url) src += (src.indexOf('?') === -1 ? '?' : '&') + 'url=' + encodeURIComponent(url);
+      spinner(url ? 'Открываю аккорды по вашей ссылке…' : 'Ищу аккорды на AmDm, MyChords и Ultimate-Guitar…');
+      fetch(src, { credentials: 'same-origin' })
+        .then(function (r) { if (!r.ok) throw new Error(String(r.status)); return r.text(); })
+        .then(function (html) {
+          box.innerHTML = html;
+          window.setupTranspose(box);
+          window.setupPdf(box);
+          setupManual();
+        })
+        .catch(function (error) {
+          // 401 — Яндекс перестал принимать токен: главная покажет, как получить новый.
+          var expired = error && error.message === '401';
+          box.innerHTML = '<div class="panel notice"><div><h2>' +
+            (expired ? 'Токен Яндекса истёк' : 'Не удалось загрузить аккорды') + '</h2><p>' +
+            (expired ? 'Нужно получить новый токен, это пара минут.' : 'Проверьте интернет и обновите страницу.') +
+            '</p><a class="button button-accent" href="' + (expired ? '/' : '') + '">' +
+            (expired ? 'Как обновить токен' : 'Обновить') + '</a></div></div>';
+        });
+    }
+
+    /** Форма «Своя ссылка на аккорды» и кнопка возврата к автоматическому поиску. */
+    function setupManual() {
+      var form = box.querySelector('[data-manual-form]');
+      if (form) {
+        var input = form.querySelector('input');
+        input.value = savedUrl();
+        form.addEventListener('submit', function (event) {
+          event.preventDefault();
+          var url = input.value.trim();
+          if (!url) return;
+          remember(url);
+          load(url);
+        });
+      }
+      box.querySelectorAll('[data-manual-reset]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          remember('');
+          load();
+        });
       });
+    }
+
+    load();
   })();
 </script>
 {% endblock %}

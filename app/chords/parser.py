@@ -27,24 +27,56 @@ from app.chords.normalize import (
 logger = logging.getLogger(__name__)
 
 MIN_MATCH = 0.6
+# Насколько должен совпадать исполнитель, чтобы не взять одноимённую песню другой группы.
+MIN_ARTIST_MATCH = 0.7
+# Оценка исполнителя, когда сайт его не указал: песня подходит, но хуже, чем с известным исполнителем.
+UNKNOWN_ARTIST_SCORE = 0.3
+
+_TRANSLIT = str.maketrans({
+    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ж": "zh", "з": "z", "и": "i",
+    "й": "i", "к": "k", "л": "l", "м": "m", "н": "n", "о": "o", "п": "p", "р": "r", "с": "s",
+    "т": "t", "у": "u", "ф": "f", "х": "h", "ц": "c", "ч": "ch", "ш": "sh", "щ": "sch", "ъ": "",
+    "ы": "y", "ь": "", "э": "e", "ю": "yu", "я": "ya",
+})
 
 
-def _similar(a: str, b: str) -> float:
-    """Насколько похожи две строки, от 0 до 1."""
-    a, b = simplify(a), simplify(b)
+def _latin(text: str) -> str:
+    """Та же строка латиницей: «Кино» → «kino», чтобы сравнивать с английским написанием."""
+    return text.translate(_TRANSLIT)
+
+
+def _similar_once(a: str, b: str) -> float:
+    """Похожесть двух уже упрощённых строк, от 0 до 1."""
     if not a or not b:
         return 0.0
-    if a == b or a in b or b in a:
+    if a == b:
         return 1.0
+    # Одно название целиком входит в другое по словам: «кино» и «группа кино».
+    words_a, words_b = a.split(), b.split()
+    shorter, longer = sorted((words_a, words_b), key=len)
+    if all(word in longer for word in shorter):
+        return 0.9
     return SequenceMatcher(None, a, b).ratio()
 
 
+def _similar(a: str, b: str) -> float:
+    """Насколько похожи две строки, от 0 до 1. Кириллица и латиница сравниваются друг с другом."""
+    a, b = simplify(a), simplify(b)
+    return max(_similar_once(a, b), _similar_once(_latin(a), _latin(b)))
+
+
 def _score(found_artist: str, found_title: str, artist: str, title: str) -> float:
-    """Оценка результата поиска: название важнее исполнителя."""
+    """Оценка результата поиска: должно совпасть название, а если сайт указал исполнителя, то и он."""
     title_score = _similar(found_title, title)
     if title_score < MIN_MATCH:
         return 0.0
-    artist_score = _similar(found_artist, artist) if found_artist else 0.5
+    if found_artist and artist:
+        artist_score = _similar(found_artist, artist)
+        if artist_score < MIN_ARTIST_MATCH:
+            logger.debug("Пропускаю «%s — %s»: другой исполнитель", found_artist, found_title)
+            return 0.0
+    else:
+        artist_score = UNKNOWN_ARTIST_SCORE
     return title_score * 0.6 + artist_score * 0.4
 
 

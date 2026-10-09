@@ -9,6 +9,7 @@ import logging
 import time
 from dataclasses import dataclass, field
 from typing import Callable, Optional
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -43,17 +44,28 @@ class Source:
     search_params: Callable[[str], dict]
     pick: Callable[[str, str, str], Optional[str]]
     parse: Callable[[str, str], Optional[ChordSheet]]
+    hosts: tuple[str, ...] = ()
 
 
 SOURCES = [
-    Source("AmDm.ru", parser.AMDM_SEARCH, lambda q: {"q": q}, parser.amdm_pick, parser.amdm_parse),
-    Source("MyChords.net", parser.MYCHORDS_SEARCH, lambda q: {"q": q}, parser.mychords_pick, parser.mychords_parse),
+    Source(
+        "AmDm.ru", parser.AMDM_SEARCH, lambda q: {"q": q}, parser.amdm_pick, parser.amdm_parse, ("amdm.ru",)
+    ),
+    Source(
+        "MyChords.net",
+        parser.MYCHORDS_SEARCH,
+        lambda q: {"q": q},
+        parser.mychords_pick,
+        parser.mychords_parse,
+        ("mychords.net",),
+    ),
     Source(
         "Ultimate-Guitar.com",
         parser.UG_SEARCH,
         lambda q: {"search_type": "title", "value": q},
         parser.ug_pick,
         parser.ug_parse,
+        ("ultimate-guitar.com",),
     ),
 ]
 
@@ -64,6 +76,10 @@ class SearchResult:
 
     sheet: Optional[ChordSheet] = None
     checked: list[tuple[str, str]] = field(default_factory=list)
+    # Аккорды взяты по ссылке, которую человек вставил сам, а не найдены поиском.
+    manual: bool = False
+    # Почему не получилось прочитать ручную ссылку (пусто, если всё хорошо).
+    manual_error: str = ""
 
     @property
     def all_failed(self) -> bool:
@@ -139,4 +155,47 @@ def find_chords(artist: str, title: str) -> SearchResult:
                 return result
             result.checked.append((source.name, "нет этой песни"))
     logger.info("Аккорды для «%s — %s» не нашлись: %s", artist, title, result.checked)
+    return result
+
+
+def source_for_url(url: str) -> Optional[Source]:
+    """Сайт, которому принадлежит ссылка. None — если это не AmDm, MyChords или Ultimate-Guitar."""
+    try:
+        parts = urlsplit(url.strip())
+    except ValueError:
+        return None
+    host = (parts.hostname or "").lower()
+    if parts.scheme not in ("http", "https"):
+        return None
+    for source in SOURCES:
+        if any(host == h or host.endswith("." + h) for h in source.hosts):
+            return source
+    return None
+
+
+def chords_from_url(url: str) -> SearchResult:
+    """Аккорды по ссылке, которую человек нашёл сам. Открываются только сайты из списка SOURCES."""
+    result = SearchResult(manual=True)
+    source = source_for_url(url)
+    if source is None:
+        result.manual_error = "Это ссылка не на AmDm.ru, MyChords.net или Ultimate-Guitar.com."
+        return result
+    url = url.strip()
+    if url.startswith("http://"):
+        url = "https://" + url[len("http://"):]
+    with httpx.Client(headers=HEADERS, timeout=TIMEOUT_SECONDS, follow_redirects=True) as client:
+        try:
+            page = fetch(client, url)
+            result.sheet = source.parse(page, url)
+        except Blocked as error:
+            result.manual_error = f"{source.name}: {error}. Попробуйте ещё раз чуть позже."
+            return result
+        except Exception:  # noqa: BLE001  (сбой парсера не должен ронять страницу)
+            logger.exception("Не удалось разобрать ручную ссылку %s", url)
+    if result.sheet is None:
+        result.manual_error = (
+            "По этой ссылке не нашлось текста с аккордами. Нужна ссылка на страницу самой песни, а не на поиск."
+        )
+    else:
+        logger.info("Аккорды взяты по ручной ссылке %s", url)
     return result

@@ -82,6 +82,42 @@ def test_plural(n, word):
     assert main.plural(n, "трек", "трека", "треков") == word
 
 
+def test_chords_block_uses_manual_link(client, monkeypatch):
+    from app.chords import normalize, sources
+
+    sheet = normalize.build_sheet("\x01Am\x02  \x01F\x02\nПесен ещё", "AmDm.ru", "https://amdm.ru/x/")
+    calls = []
+
+    def from_url(url):
+        calls.append(url)
+        return sources.SearchResult(sheet=sheet, manual=True)
+
+    monkeypatch.setattr(sources, "chords_from_url", from_url)
+    monkeypatch.setattr(sources, "find_chords", lambda a, t: pytest.fail("поиск не нужен"))
+    page = client.get("/track/1:10/chords", params={"url": "https://amdm.ru/x/"})
+    assert calls == ["https://amdm.ru/x/"]
+    assert "Аккорды по вашей ссылке" in page.text
+    assert "data-manual-reset" in page.text
+
+
+def test_chords_block_explains_bad_manual_link(client, monkeypatch):
+    from app.chords import sources
+
+    result = sources.SearchResult(manual=True, manual_error="Это ссылка не на AmDm.ru")
+    monkeypatch.setattr(sources, "chords_from_url", lambda url: result)
+    page = client.get("/track/1:10/chords", params={"url": "https://example.com/"})
+    assert "Не получилось открыть аккорды по ссылке" in page.text
+    assert "Это ссылка не на AmDm.ru" in page.text
+    assert "data-manual-form" in page.text
+
+
+def test_not_found_offers_manual_link(client, monkeypatch):
+    from app.chords import sources
+
+    monkeypatch.setattr(sources, "find_chords", lambda a, t: sources.SearchResult(checked=[("AmDm.ru", "нет этой песни")]))
+    assert "data-manual-form" in client.get("/track/1:10/chords").text
+
+
 def test_chordbook_page_opens_and_is_linked_from_header(client):
     page = client.get("/chordbook")
     assert page.status_code == 200

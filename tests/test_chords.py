@@ -191,3 +191,47 @@ def test_find_reports_every_site_when_nothing_found(monkeypatch):
     assert result.sheet is None
     assert [name for name, _ in result.checked] == ["AmDm.ru", "MyChords.net", "Ultimate-Guitar.com"]
     assert not result.all_failed
+
+
+def test_amdm_skips_same_title_by_another_artist():
+    # Поиск по одному названию часто выдаёт одноимённую песню другой группы — её брать нельзя.
+    assert parser.amdm_pick(AMDM_SEARCH_PAGE, "Сплин", "Кукушка") is None
+
+
+@pytest.mark.parametrize(
+    "found, wanted",
+    [("Кино", "Kino"), ("Земфира", "Zemfira"), ("Мумий Тролль", "Mumiy Troll"), ("Кино", "Кино")],
+)
+def test_artist_written_in_latin_still_matches(found, wanted):
+    assert parser._score(found, "Песня", wanted, "Песня") > 0
+
+
+def test_other_artist_is_rejected():
+    assert parser._score("Алиса", "Кукушка", "Кино", "Кукушка") == 0
+
+
+def test_manual_link_reads_chords_from_a_song_page(monkeypatch):
+    routes = {"https://amdm.ru/akkordi/kino/99876/": (200, AMDM_SONG_PAGE)}
+    monkeypatch.setattr(sources.httpx, "Client", lambda **kwargs: make_client(routes))
+    result = sources.chords_from_url("http://amdm.ru/akkordi/kino/99876/kukushka/")
+    assert result.manual and not result.manual_error
+    assert result.sheet.source == "AmDm.ru"
+    assert result.sheet.chords == ["Am", "F", "C", "G"]
+
+
+@pytest.mark.parametrize(
+    "url", ["https://example.com/akkordi/1/", "javascript:alert(1)", "https://amdm.ru.evil.com/x/", "не ссылка"]
+)
+def test_manual_link_only_opens_chord_sites(monkeypatch, url):
+    monkeypatch.setattr(sources.httpx, "Client", lambda **kwargs: pytest.fail("не должен ходить в интернет"))
+    result = sources.chords_from_url(url)
+    assert result.sheet is None
+    assert "AmDm.ru" in result.manual_error
+
+
+def test_manual_link_to_search_page_explains_what_is_wrong(monkeypatch):
+    routes = {"https://amdm.ru/search/": (200, AMDM_SEARCH_PAGE)}
+    monkeypatch.setattr(sources.httpx, "Client", lambda **kwargs: make_client(routes))
+    result = sources.chords_from_url("https://amdm.ru/search/?q=кино")
+    assert result.sheet is None
+    assert "страницу самой песни" in result.manual_error
