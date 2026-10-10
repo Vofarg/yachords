@@ -20,7 +20,7 @@
   <header class="header">
     <div class="container">
       <a class="logo" href="/">{{ icon('guitar') }}Аккорды</a>
-      <nav class="nav"><a href="/chordbook"{% if request.url.path == '/chordbook' %} aria-current="page"{% endif %}>Справочник</a></nav>
+      <nav class="nav"><a href="/chordbook"{% if request.url.path == '/chordbook' %} aria-current="page"{% endif %}>Справочник</a>{% if request.state.login and request.state.login != 'владелец' %}<a href="/logout">Выйти</a>{% endif %}</nav>
       <div class="theme-switch" role="group" aria-label="Тема">
         <button type="button" data-set-theme="light" aria-label="Светлая тема">{{ icon('sun') }}</button>
         <button type="button" data-set-theme="dark" aria-label="Тёмная тема">{{ icon('moon') }}</button>

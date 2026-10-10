@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% from "icons.html" import icon %}
+{% block title %}Подключение Музыки · Аккорды{% endblock %}
+{% block content %}
+<div class="panel notice">
+  {{ icon('guitar') }}
+  <div>
+    <h2>Вы вошли как {{ login }}</h2>
+    <p>Подключение своей Яндекс.Музыки появится в ближайшем обновлении сайта: тогда здесь будут ваши плейлисты и простая инструкция.</p>
+    <p>А пока можно открыть справочник аккордов.</p>
+    <a class="button button-accent" href="/chordbook">Справочник аккордов</a>
+  </div>
+</div>
+{% endblock %}
