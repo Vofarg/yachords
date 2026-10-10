@@ -51,6 +51,7 @@ NO_MUSIC_PATHS = ("/connect", "/chordbook")
 async def require_login(request: Request, call_next):
     """Пускает на страницы сайта только вошедших и решает, чьи плейлисты им показывать."""
     request.state.login = None
+    request.state.can_logout = False
     path = request.url.path
     if path.startswith(PUBLIC_PATHS):
         return await call_next(request)
@@ -58,6 +59,7 @@ async def require_login(request: Request, call_next):
     if login is None:
         return RedirectResponse("/login", status_code=303)
     request.state.login = login
+    request.state.can_logout = auth.login_required()
     if auth.is_owner(login):
         yandex.use_token(None)
     else:

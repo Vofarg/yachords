@@ -100,6 +100,11 @@ def current_login(cookie: Optional[str]) -> Optional[str]:
     return None
 
 
+def login_required() -> bool:
+    """Нужен ли вообще вход: да, если настроен Яндекс ID или задан пароль."""
+    return yandex_id.configured() or password() is not None
+
+
 def check_password(attempt: str) -> Optional[str]:
     """Сверяет введённый пароль. Возвращает значение cookie при успехе, иначе None."""
     secret = password()
