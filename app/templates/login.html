@@ -1,10 +1,19 @@
 {% extends "base.html" %}
 {% block title %}Вход · Аккорды{% endblock %}
 {% block content %}
+{% if yandex_id %}
+<div class="panel login">
+  <h1>Вход</h1>
+  {% if message %}<p class="error-text">{{ message }}</p>{% endif %}
+  <p class="muted">Сайт для друзей: войдите через свой аккаунт Яндекса. Пароль от Яндекса сайт не видит.</p>
+  <a class="button button-accent" href="/auth/yandex">Войти через Яндекс ID</a>
+</div>
+{% else %}
 <form class="panel login" method="post" action="/login">
   <h1>Вход</h1>
   {% if failed %}<p class="error-text">Неверный пароль</p>{% endif %}
   <input class="field" type="password" name="password" placeholder="Пароль" autocomplete="current-password" autofocus required>
   <button class="button button-accent" type="submit">Войти</button>
 </form>
+{% endif %}
 {% endblock %}

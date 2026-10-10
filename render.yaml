@@ -17,5 +17,13 @@ services:
         sync: false
       - key: APP_PASSWORD
         sync: false
+      - key: YANDEX_ID_CLIENT_ID
+        sync: false
+      - key: YANDEX_ID_CLIENT_SECRET
+        sync: false
+      - key: OWNER_LOGIN
+        sync: false
+      - key: ALLOWED_LOGINS
+        sync: false
       - key: LOG_LEVEL
         value: INFO

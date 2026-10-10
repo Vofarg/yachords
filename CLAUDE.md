@@ -53,7 +53,8 @@
 ├── pytest.ini
 ├── app/
 │ ├── main.py # FastAPI, роуты, страницы ошибок
-│ ├── auth.py # вход по паролю APP_PASSWORD
+│ ├── auth.py # кто вошёл: Яндекс ID или пароль APP_PASSWORD
+│ ├── yandex_id.py # вход через Яндекс ID (только логин)
 │ ├── yandex.py # обёртка над yandex-music
 │ ├── chords/
 │ │ ├── parser.py # парсинг AmDm, MyChords, UG
@@ -64,6 +65,7 @@
 │ ├── base.html
 │ ├── icons.html # иконки и обложки
 │ ├── login.html
+│ ├── connect.html # подключение своей Яндекс.Музыки
 │ ├── playlists.html
 │ ├── playlist.html
 │ ├── track.html
@@ -81,6 +83,7 @@
 └── tests/
 ├── test_chords.py
 ├── test_pages.py
+├── test_login.py
 └── test_yandex.py
 ```
 
@@ -91,6 +94,10 @@
 ```text
 YANDEX_MUSIC_TOKEN= # OAuth-токен, добывается вручную из DevTools
 YANDEX_MUSIC_UID= # твой user id (число)
+YANDEX_ID_CLIENT_ID= # приложение Яндекс ID для входа друзей (oauth.yandex.ru)
+YANDEX_ID_CLIENT_SECRET=
+OWNER_LOGIN= # логин владельца: ему плейлисты по YANDEX_MUSIC_TOKEN
+ALLOWED_LOGINS= # логины друзей через запятую
 APP_HOST=0.0.0.0
 APP_PORT=8000
 LOG_LEVEL=INFO

@@ -56,24 +56,30 @@ class EmptyPlaylist(NotFound):
 # Токен того, кто сейчас открыл страницу. Пока он задаётся только через настройки
 # (YANDEX_MUSIC_TOKEN), но позже у каждого друга будет свой, сохранённый при входе.
 _current_token: ContextVar[Optional[str]] = ContextVar("yandex_token", default=None)
+# Можно ли для текущего запроса брать токен из настроек (только владельцу сайта).
+_settings_allowed: ContextVar[bool] = ContextVar("yandex_settings_allowed", default=True)
 
 _clients: dict[str, Client] = {}
 _clients_lock = threading.Lock()
 _cache: dict[str, tuple[float, object]] = {}
 
 
-def use_token(token: Optional[str]) -> None:
+def use_token(token: Optional[str], settings_allowed: bool = True) -> None:
     """Задаёт токен Яндекс.Музыки для текущего запроса.
 
     Все функции этого файла дальше работают от имени владельца этого токена.
-    None означает «взять токен из настроек».
+    None означает «взять токен из настроек», но только если settings_allowed:
+    друзьям токен владельца из настроек не достаётся никогда.
     """
     _current_token.set(token.strip() if token else None)
+    _settings_allowed.set(settings_allowed)
 
 
 def _token() -> str:
-    """Токен текущего пользователя: заданный для запроса или из настроек."""
-    token = _current_token.get() or os.getenv("YANDEX_MUSIC_TOKEN", "").strip()
+    """Токен текущего пользователя: заданный для запроса или (для владельца) из настроек."""
+    token = _current_token.get()
+    if not token and _settings_allowed.get():
+        token = os.getenv("YANDEX_MUSIC_TOKEN", "").strip()
     if not token:
         logger.warning("Токен Яндекс.Музыки не задан")
         raise TokenError

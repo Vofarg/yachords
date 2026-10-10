@@ -149,7 +149,7 @@ img { display: block; max-width: 100%; }
 }
 .logo svg { width: var(--icon-size); height: var(--icon-size); color: var(--color-accent); }
 
-.nav { margin-left: auto; margin-right: var(--space-3); }
+.nav { display: flex; gap: var(--space-1); margin-left: auto; margin-right: var(--space-3); }
 .nav a {
   display: inline-flex;
   align-items: center;
@@ -356,6 +356,7 @@ h1 {
 }
 .field:focus { outline: 2px solid var(--color-accent); outline-offset: 0; }
 .login .button { width: 100%; }
+.login .muted { margin: 0 0 var(--space-4); font-size: var(--text-sm); }
 .error-text { color: var(--color-error); font-size: var(--text-sm); margin: 0 0 var(--space-3); }
 
 :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
@@ -677,6 +678,7 @@ h1 {
   .chordbook-item .diagrams { grid-template-columns: repeat(3, 1fr); }
   .note-picker { grid-template-columns: repeat(6, 1fr); }
   .nav { margin-right: var(--space-2); }
+  .nav a { padding: 0 var(--space-2); }
   .diagram { padding: var(--space-2) var(--space-1) var(--space-1); }
   .tab { font-size: var(--text-xs); padding: var(--space-3); }
   .sheet-foot .button { width: 100%; }

@@ -2,6 +2,7 @@
 
 import logging
 import os
+import secrets
 from pathlib import Path
 from typing import Optional
 
@@ -13,7 +14,7 @@ from fastapi.templating import Jinja2Templates
 
 load_dotenv()
 
-from app import auth, yandex  # noqa: E402  (настройки из .env должны загрузиться раньше)
+from app import auth, yandex, yandex_id  # noqa: E402  (настройки из .env должны загрузиться раньше)
 from app.chords import sources  # noqa: E402
 from app.models import LIKES_KIND  # noqa: E402
 
@@ -41,16 +42,50 @@ def plural(n: int, one: str, few: str, many: str) -> str:
 
 templates.env.filters["plural"] = plural
 
-PUBLIC_PATHS = ("/login", "/static/", "/healthz")
+PUBLIC_PATHS = ("/login", "/auth/", "/logout", "/static/", "/healthz")
+# Страницы, которые открываются и без подключённой Яндекс.Музыки.
+NO_MUSIC_PATHS = ("/connect", "/chordbook")
 
 
 @app.middleware("http")
 async def require_login(request: Request, call_next):
-    """Пускает на страницы сайта только после ввода пароля (если пароль задан)."""
+    """Пускает на страницы сайта только вошедших и решает, чьи плейлисты им показывать."""
+    request.state.login = None
     path = request.url.path
-    if path.startswith(PUBLIC_PATHS) or auth.is_logged_in(request.cookies.get(auth.COOKIE_NAME)):
+    if path.startswith(PUBLIC_PATHS):
         return await call_next(request)
-    return RedirectResponse("/login", status_code=303)
+    login = auth.current_login(request.cookies.get(auth.COOKIE_NAME))
+    if login is None:
+        return RedirectResponse("/login", status_code=303)
+    request.state.login = login
+    if auth.is_owner(login):
+        yandex.use_token(None)
+    else:
+        # Друзьям токен владельца из настроек не достаётся. Свою Музыку они подключат
+        # на следующем шаге, а пока видят страницу-заглушку и справочник.
+        yandex.use_token(None, settings_allowed=False)
+        if not path.startswith(NO_MUSIC_PATHS):
+            return RedirectResponse("/connect", status_code=303)
+    return await call_next(request)
+
+
+def _is_https(request: Request) -> bool:
+    """Открыт ли сайт по https. На Render это видно по заголовку от его прокси."""
+    return request.headers.get("x-forwarded-proto", request.url.scheme) == "https"
+
+
+def _set_cookie(request: Request, response: Response, name: str, value: str, max_age: int) -> None:
+    """Ставит cookie, недоступную скриптам страницы и (на https) передаваемую только по https."""
+    response.set_cookie(name, value, max_age=max_age, httponly=True, samesite="lax", secure=_is_https(request))
+
+
+def _callback_url(request: Request) -> str:
+    """Адрес, на который Яндекс ID вернёт человека после входа.
+
+    Он должен в точности совпадать с Redirect URI в настройках приложения на oauth.yandex.ru.
+    """
+    scheme = "https" if _is_https(request) else "http"
+    return f"{scheme}://{request.url.netloc}/auth/yandex/callback"
 
 
 def _error(
@@ -128,31 +163,98 @@ def healthz() -> dict:
     return {"ok": True}
 
 
+LOGIN_ERRORS = {
+    "not_allowed": "Логина {login} нет в списке друзей сайта. Попросите владельца добавить его.",
+    "failed": "Не получилось войти через Яндекс. Попробуйте ещё раз.",
+    "cancelled": "Вход отменён. Чтобы открыть сайт, разрешите доступ на странице Яндекса.",
+}
+
+
+def _login_page(request: Request, error: str = "", login: str = "", status: int = 200) -> Response:
+    """Страница входа: кнопка Яндекс ID или поле пароля, смотря что настроено."""
+    message = LOGIN_ERRORS.get(error, "").format(login=login)
+    return templates.TemplateResponse(
+        request,
+        "login.html",
+        {"yandex_id": yandex_id.configured(), "failed": False, "message": message},
+        status_code=status,
+    )
+
+
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request) -> Response:
-    """Форма ввода пароля."""
-    if auth.password() is None:
+    """Страница входа. Если вход не нужен (ни Яндекс ID, ни пароля), сразу на главную."""
+    if not yandex_id.configured() and auth.password() is None:
         return RedirectResponse("/", status_code=303)
-    return templates.TemplateResponse(request, "login.html", {"failed": False})
+    return _login_page(request)
 
 
 @app.post("/login", response_class=HTMLResponse)
 def login(request: Request, password: str = Form("")) -> Response:
-    """Проверяет пароль и запоминает вход в cookie."""
-    session = auth.check_password(password)
+    """Проверяет общий пароль (работает, только пока не настроен Яндекс ID)."""
+    session = None if yandex_id.configured() else auth.check_password(password)
     if session is None:
         logger.info("Неверный пароль на входе")
-        return templates.TemplateResponse(request, "login.html", {"failed": True}, status_code=401)
+        return templates.TemplateResponse(
+            request, "login.html", {"yandex_id": yandex_id.configured(), "failed": True, "message": ""}, status_code=401
+        )
     response = RedirectResponse("/", status_code=303)
-    response.set_cookie(
-        auth.COOKIE_NAME,
-        session,
-        max_age=auth.COOKIE_MAX_AGE,
-        httponly=True,
-        samesite="lax",
-        secure=request.url.scheme == "https",
-    )
+    _set_cookie(request, response, auth.COOKIE_NAME, session, auth.COOKIE_MAX_AGE)
     return response
+
+
+@app.get("/auth/yandex")
+def yandex_login(request: Request) -> Response:
+    """Отправляет человека на страницу Яндекс ID, где он подтверждает вход."""
+    if not yandex_id.configured():
+        return RedirectResponse("/login", status_code=303)
+    # Случайная метка защищает от подделки возврата: Яндекс вернёт её обратно, а мы сверим с cookie.
+    state = secrets.token_urlsafe(16)
+    response = RedirectResponse(yandex_id.authorize_url(_callback_url(request), state), status_code=303)
+    _set_cookie(request, response, auth.STATE_COOKIE, state, 600)
+    return response
+
+
+@app.get("/auth/yandex/callback")
+def yandex_callback(request: Request, code: str = "", state: str = "", error: str = "") -> Response:
+    """Сюда Яндекс ID возвращает человека после входа: узнаём логин и пускаем, если он в списке."""
+    if not yandex_id.configured():
+        return RedirectResponse("/login", status_code=303)
+    if error:
+        logger.info("Вход через Яндекс ID отменён: %s", error)
+        return _login_page(request, "cancelled", status=401)
+    expected = request.cookies.get(auth.STATE_COOKIE)
+    if not code or not expected or not secrets.compare_digest(state.encode(), expected.encode()):
+        logger.warning("Возврат из Яндекс ID без кода или с чужой меткой")
+        return _login_page(request, "failed", status=400)
+    try:
+        login = yandex_id.login_by_code(code)
+    except yandex_id.YandexIdError:
+        return _login_page(request, "failed", status=502)
+    if not auth.is_allowed(login):
+        logger.info("Вход отклонён: логина нет в списке друзей")
+        return _login_page(request, "not_allowed", login=login, status=403)
+    logger.info("Вход через Яндекс ID выполнен")
+    response = RedirectResponse("/", status_code=303)
+    _set_cookie(request, response, auth.COOKIE_NAME, auth.make_session(login), auth.COOKIE_MAX_AGE)
+    response.delete_cookie(auth.STATE_COOKIE)
+    return response
+
+
+@app.get("/logout")
+def logout() -> Response:
+    """Выход: забываем cookie входа."""
+    response = RedirectResponse("/login", status_code=303)
+    response.delete_cookie(auth.COOKIE_NAME)
+    return response
+
+
+@app.get("/connect", response_class=HTMLResponse)
+def connect(request: Request) -> Response:
+    """Страница для друзей, пока подключение своей Яндекс.Музыки не готово."""
+    if request.state.login and auth.is_owner(request.state.login):
+        return RedirectResponse("/", status_code=303)
+    return templates.TemplateResponse(request, "connect.html", {"login": request.state.login})
 
 
 @app.get("/", response_class=HTMLResponse)
