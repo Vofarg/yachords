@@ -6,7 +6,7 @@
   <h1>Вход</h1>
   {% if message %}<p class="error-text">{{ message }}</p>{% endif %}
   <p class="muted">Сайт для друзей: войдите через свой аккаунт Яндекса. Пароль от Яндекса сайт не видит.</p>
-  <a class="button button-accent" href="/auth/yandex">Войти через Яндекс ID</a>
+  <a class="button button-accent" href="/auth/yandex{% if next %}?next={{ next }}{% endif %}">Войти через Яндекс ID</a>
 </div>
 {% else %}
 <form class="panel login" method="post" action="/login">

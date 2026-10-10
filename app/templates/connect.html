@@ -1,14 +1,94 @@
 {% extends "base.html" %}
 {% from "icons.html" import icon %}
-{% block title %}Подключение Музыки · Аккорды{% endblock %}
+{% block title %}Моя Музыка · Аккорды{% endblock %}
 {% block content %}
-<div class="panel notice">
-  {{ icon('guitar') }}
-  <div>
-    <h2>Вы вошли как {{ login }}</h2>
-    <p>Подключение своей Яндекс.Музыки появится в ближайшем обновлении сайта: тогда здесь будут ваши плейлисты и простая инструкция.</p>
-    <p>А пока можно открыть справочник аккордов.</p>
-    <a class="button button-accent" href="/chordbook">Справочник аккордов</a>
-  </div>
+<div class="connect">
+  <h1>Моя Яндекс.Музыка</h1>
+  {% if login %}<p class="muted">Вы вошли как {{ login }}.</p>{% endif %}
+
+  {% if expired %}
+  <div class="panel connect-alert">{{ icon('warning') }}<p>Яндекс перестал принимать ваш токен Музыки: у него закончился срок. Подключите Музыку заново, это займёт минуту.</p></div>
+  {% endif %}
+  {% if error %}
+  <div class="panel connect-alert">{{ icon('warning') }}<p>{{ error }}</p></div>
+  {% endif %}
+
+  {% if connected %}
+  <section class="panel connect-done">
+    <h2>Музыка подключена</h2>
+    <p class="muted">На этом устройстве открываются ваши плейлисты.</p>
+    <a class="button button-accent" href="/">К моим плейлистам</a>
+  </section>
+
+  {% if qr %}
+  <section class="panel connect-phone">
+    <div class="qr" aria-hidden="true">{{ qr | safe }}</div>
+    <div>
+      <h2>Подключить телефон</h2>
+      <ol class="steps">
+        <li>Откройте камеру на телефоне и наведите её на этот код.</li>
+        <li>Откройте ссылку, которую покажет камера, и войдите через Яндекс ID тем же аккаунтом.</li>
+        <li>Готово: на телефоне появятся ваши плейлисты.</li>
+      </ol>
+      <p class="subtle">Код работает 15 минут. Если не успели, просто обновите эту страницу.</p>
+      <details class="connect-link">
+        <summary>Не получается отсканировать?</summary>
+        <p class="subtle">Отправьте себе эту ссылку, например в мессенджере, и откройте её на телефоне:</p>
+        <input class="field" type="text" readonly value="{{ phone_url }}" onclick="this.select()">
+      </details>
+    </div>
+  </section>
+  {% endif %}
+
+  <form class="connect-off" method="post" action="/connect/disconnect">
+    <button class="button" type="submit">Отключить Музыку на этом устройстве</button>
+  </form>
+
+  {% else %}
+  {% if uses_settings %}
+  <p class="muted">Сейчас ваши плейлисты открываются по токену из настроек сайта. Можно подключить Музыку здесь, тогда токен в настройках станет не нужен.</p>
+  {% else %}
+  <p class="muted">Чтобы видеть свои плейлисты, подключите Яндекс.Музыку. Это три шага и одна минута. Удобнее всего с компьютера, а телефон потом подключится по QR-коду.</p>
+  {% endif %}
+
+  <ol class="connect-steps">
+    <li class="panel">
+      <span class="connect-num">1</span>
+      <div>
+        <h2>Откройте страницу Яндекса</h2>
+        <p class="muted">Войдите тем аккаунтом, где ваша Музыка, и нажмите «Разрешить» или «Войти как…».</p>
+        <a class="button button-accent" href="{{ token_url }}" target="_blank" rel="noopener noreferrer">Открыть Яндекс</a>
+      </div>
+    </li>
+    <li class="panel">
+      <span class="connect-num">2</span>
+      <div>
+        <h2>Скопируйте адрес страницы</h2>
+        <p class="muted">Яндекс перекинет на страницу Музыки. Нажмите на адресную строку вверху браузера и скопируйте весь адрес. Он длинный, и в нём есть <code>access_token=</code>:</p>
+        <div class="addressbar" aria-label="Пример адреса">
+          <span class="addressbar-host">music.yandex.ru/#</span><mark>access_token=y0_AgAAAAB3x…</mark><span class="addressbar-host">&amp;token_type=bearer…</span>
+        </div>
+        <p class="subtle">Если вместо сайта открылось приложение Яндекс Музыки или в адресе уже нет <code>access_token=</code>, сделайте этот шаг на компьютере.</p>
+      </div>
+    </li>
+    <li class="panel">
+      <span class="connect-num">3</span>
+      <div>
+        <h2>Вставьте адрес сюда</h2>
+        <form method="post" action="/connect">
+          <textarea class="field connect-field" name="token_text" rows="3" placeholder="https://music.yandex.ru/#access_token=…" required></textarea>
+          <button class="button button-accent" type="submit">Подключить</button>
+        </form>
+        <p class="subtle">Сайт сам найдёт в адресе нужную часть. Можно вставить и только сам токен.</p>
+      </div>
+    </li>
+  </ol>
+  {% endif %}
+
+  <details class="connect-about">
+    <summary>Что это за доступ и где он хранится</summary>
+    <p class="muted">Яндекс выдаёт ключ к вашей Музыке, он называется токен. Сайт хранит его только в вашем браузере, в зашифрованном виде, и использует, чтобы показать ваши плейлисты. Владелец сайта и другие друзья его не видят.</p>
+    <p class="muted">Отключить можно кнопкой на этой странице или выйти с сайта. Если вам кажется, что токен попал в чужие руки, на <a href="https://id.yandex.ru/security" target="_blank" rel="noopener noreferrer">id.yandex.ru</a> выберите «Выйти на всех устройствах»: старый токен перестанет работать.</p>
+  </details>
 </div>
 {% endblock %}

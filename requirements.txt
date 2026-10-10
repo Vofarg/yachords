@@ -7,3 +7,5 @@ yandex-music==3.0.0
 httpx==0.28.1
 selectolax==1.0.0
 pytest==8.4.2
+cryptography==50.0.2
+qrcode==8.2
