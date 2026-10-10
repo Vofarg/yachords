@@ -208,3 +208,15 @@ def test_playlist_counts_unavailable_tracks_like_the_home_page(client, monkeypat
     monkeypatch.setattr(yandex, "get_playlist", lambda kind: details)
     page = client.get("/playlist/likes")
     assert "5 треков, из них 3 недоступны" in page.text
+
+
+def test_password_login_can_log_out(client, monkeypatch):
+    monkeypatch.setenv("APP_PASSWORD", "секрет")
+    client.post("/login", data={"password": "секрет"})
+    assert 'href="/logout"' in client.get("/").text
+    client.get("/logout")
+    assert client.get("/", follow_redirects=False).headers["location"] == "/login"
+
+
+def test_no_logout_link_without_login(client):
+    assert 'href="/logout"' not in client.get("/").text
