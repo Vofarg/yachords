@@ -5,12 +5,14 @@
 библиотека, поэтому если она сломается, менять придётся только этот файл.
 """
 
+import hashlib
 import logging
 import os
 import random
 import re
 import threading
 import time
+from contextvars import ContextVar
 from typing import Callable, Optional, TypeVar
 
 from yandex_music import Client, Playlist, Track
@@ -51,9 +53,39 @@ class EmptyPlaylist(NotFound):
     """Плейлист есть, но в нём нет ни одного трека."""
 
 
-_client: Optional[Client] = None
-_client_lock = threading.Lock()
+# Токен того, кто сейчас открыл страницу. Пока он задаётся только через настройки
+# (YANDEX_MUSIC_TOKEN), но позже у каждого друга будет свой, сохранённый при входе.
+_current_token: ContextVar[Optional[str]] = ContextVar("yandex_token", default=None)
+
+_clients: dict[str, Client] = {}
+_clients_lock = threading.Lock()
 _cache: dict[str, tuple[float, object]] = {}
+
+
+def use_token(token: Optional[str]) -> None:
+    """Задаёт токен Яндекс.Музыки для текущего запроса.
+
+    Все функции этого файла дальше работают от имени владельца этого токена.
+    None означает «взять токен из настроек».
+    """
+    _current_token.set(token.strip() if token else None)
+
+
+def _token() -> str:
+    """Токен текущего пользователя: заданный для запроса или из настроек."""
+    token = _current_token.get() or os.getenv("YANDEX_MUSIC_TOKEN", "").strip()
+    if not token:
+        logger.warning("Токен Яндекс.Музыки не задан")
+        raise TokenError
+    return token
+
+
+def _user_key(token: str) -> str:
+    """Короткий отпечаток токена: по нему разделяются данные разных людей.
+
+    Сам токен в памяти как ключ не используется и в логи не попадает.
+    """
+    return hashlib.sha256(token.encode()).hexdigest()[:16]
 
 
 def _call(action: Callable[[], T], what: str) -> T:
@@ -79,34 +111,44 @@ def _call(action: Callable[[], T], what: str) -> T:
 
 
 def _get_client() -> Client:
-    """Возвращает подключённый клиент Яндекс.Музыки, создавая его при первом вызове."""
-    global _client
-    with _client_lock:
-        if _client is not None:
-            return _client
-        token = os.getenv("YANDEX_MUSIC_TOKEN", "").strip()
-        if not token:
-            logger.warning("Переменная YANDEX_MUSIC_TOKEN не задана")
-            raise TokenError
+    """Возвращает подключённый клиент Яндекс.Музыки текущего пользователя.
+
+    У каждого токена свой клиент, поэтому люди никогда не видят чужие плейлисты.
+    """
+    token = _token()
+    key = _user_key(token)
+    with _clients_lock:
+        client = _clients.get(key)
+        if client is not None:
+            return client
         client = Client(token)
-        if not os.getenv("YANDEX_MUSIC_UID", "").strip():
+        if not _settings_uid(token):
             # Без UID библиотека сама узнаёт номер аккаунта по токену.
             _call(lambda: client.init(), "данные аккаунта")
-        _client = client
+        _clients[key] = client
         return client
 
 
-def _uid() -> int:
-    """Номер аккаунта: из настроек, а если его там нет, то по токену."""
-    client = _get_client()
+def _settings_uid(token: str) -> Optional[int]:
+    """UID из настроек, но только для токена из тех же настроек (то есть для владельца)."""
     uid = os.getenv("YANDEX_MUSIC_UID", "").strip()
-    if uid:
+    if uid and token == os.getenv("YANDEX_MUSIC_TOKEN", "").strip():
         return int(uid)
-    return client.me.account.uid
+    return None
+
+
+def _uid() -> int:
+    """Номер аккаунта текущего пользователя: из настроек, а если его там нет, то по токену."""
+    client = _get_client()
+    return _settings_uid(_token()) or client.me.account.uid
 
 
 def _cached(key: str, load: Callable[[], T]) -> T:
-    """Держит ответ Яндекса в памяти несколько минут, чтобы страницы открывались быстрее."""
+    """Держит ответ Яндекса в памяти несколько минут, чтобы страницы открывались быстрее.
+
+    Ответы хранятся отдельно для каждого пользователя.
+    """
+    key = f"{_user_key(_token())}:{key}"
     now = time.monotonic()
     hit = _cache.get(key)
     if hit and now - hit[0] < CACHE_SECONDS:
@@ -117,10 +159,9 @@ def _cached(key: str, load: Callable[[], T]) -> T:
 
 
 def reset() -> None:
-    """Забывает клиент и сохранённые ответы, например после смены токена."""
-    global _client
-    with _client_lock:
-        _client = None
+    """Забывает всех клиентов и сохранённые ответы, например после смены токена."""
+    with _clients_lock:
+        _clients.clear()
     _cache.clear()
 
 
