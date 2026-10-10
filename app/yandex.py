@@ -181,6 +181,20 @@ def check_token() -> bool:
         return False
 
 
+def verify_token(token: str) -> bool:
+    """Проверяет токен, который вставил человек: пускает ли с ним Яндекс.Музыка.
+
+    Если Яндекс не ответил, выбрасывает YandexUnavailableError: тогда токен
+    нельзя назвать ни хорошим, ни плохим.
+    """
+    client = Client(token)
+    try:
+        status = _call(lambda: client.account_status(timeout=TIMEOUT_SECONDS), "проверка токена")
+    except TokenError:
+        return False
+    return bool(status and status.account and status.account.uid)
+
+
 def _format_duration(ms: Optional[int]) -> str:
     """Превращает длительность в миллисекундах в вид «4:07»."""
     if not ms:

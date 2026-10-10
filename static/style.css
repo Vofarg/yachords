@@ -23,6 +23,7 @@
   --color-warning:       #e8a33d;
   --color-error:         #e5484d;
   --color-on-accent:     #ffffff;   /* расширение DESIGN.md: текст на акцентной кнопке */
+  --color-qr-bg:         #ffffff;   /* расширение DESIGN.md: QR-код читается камерой только на белом */
 
   --font-ui:    'Inter', system-ui, -apple-system, sans-serif;
   --font-mono:  'JetBrains Mono', 'Fira Code', monospace;
@@ -683,3 +684,61 @@ h1 {
   .tab { font-size: var(--text-xs); padding: var(--space-3); }
   .sheet-foot .button { width: 100%; }
 }
+
+/* Страница «Моя Музыка»: подключение своей Яндекс.Музыки */
+.connect { max-width: 720px; margin: 0 auto; }
+.connect h2 { margin: 0 0 var(--space-2); font-size: var(--text-lg); }
+.connect p { margin: 0 0 var(--space-4); }
+.connect code { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-text); }
+.connect-alert { display: flex; gap: var(--space-3); align-items: flex-start; margin-bottom: var(--space-4); border-color: var(--color-warning); }
+.connect-alert svg { flex: none; width: var(--icon-size); height: var(--icon-size); color: var(--color-warning); }
+.connect-alert p { margin: 0; }
+.connect-steps { display: grid; gap: var(--space-4); margin: 0 0 var(--space-6); padding: 0; list-style: none; }
+.connect-steps > li { display: flex; gap: var(--space-4); align-items: flex-start; }
+.connect-steps > li > div { flex: 1; min-width: 0; }
+.connect-num {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap-size);
+  height: var(--tap-size);
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-weight: var(--weight-bold);
+}
+.addressbar {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+.addressbar-host { color: var(--color-text-subtle); }
+.addressbar mark { padding: 0 var(--space-1); border-radius: var(--radius-sm); background: var(--color-highlight); color: var(--color-on-highlight); }
+.connect-field { min-height: calc(var(--tap-size) * 2); resize: vertical; font-family: var(--font-mono); font-size: var(--text-sm); }
+.connect-done, .connect-phone { margin-bottom: var(--space-4); }
+.connect-phone { display: flex; gap: var(--space-6); align-items: center; }
+.connect-phone > div { flex: 1; min-width: 0; }
+.qr { flex: none; width: calc(var(--cover-lg) + var(--space-10)); padding: var(--space-2); border-radius: var(--radius-md); background: var(--color-qr-bg); }
+.qr svg { display: block; width: 100%; height: auto; }
+.connect-off { margin-bottom: var(--space-6); }
+.connect-about { margin-bottom: var(--space-8); }
+.connect-about summary { cursor: pointer; color: var(--color-text-muted); font-size: var(--text-sm); margin-bottom: var(--space-3); }
+.connect-about a { color: var(--color-accent); }
+
+@media (max-width: 640px) {
+  .connect-steps > li { gap: var(--space-3); }
+  .connect-steps .button { width: 100%; }
+  .connect-phone { flex-direction: column; align-items: stretch; }
+  .qr { width: 100%; max-width: calc(var(--cover-lg) + var(--space-10)); margin: 0 auto; }
+}
+.playlists-foot { margin-top: var(--space-8); }
+.playlists-foot a { color: var(--color-text-muted); text-decoration: underline; }
+.connect-link summary { cursor: pointer; color: var(--color-text-muted); font-size: var(--text-sm); }
+.connect-link .field { margin: 0; font-family: var(--font-mono); font-size: var(--text-xs); }
+.connect-steps form .button { margin-bottom: var(--space-3); }

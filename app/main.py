@@ -5,6 +5,7 @@ import os
 import secrets
 from pathlib import Path
 from typing import Optional
+from urllib.parse import quote
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Form, Request
@@ -14,7 +15,7 @@ from fastapi.templating import Jinja2Templates
 
 load_dotenv()
 
-from app import auth, yandex, yandex_id  # noqa: E402  (настройки из .env должны загрузиться раньше)
+from app import auth, music_link, yandex, yandex_id  # noqa: E402  (настройки из .env должны загрузиться раньше)
 from app.chords import sources  # noqa: E402
 from app.models import LIKES_KIND  # noqa: E402
 
@@ -45,6 +46,10 @@ templates.env.filters["plural"] = plural
 PUBLIC_PATHS = ("/login", "/auth/", "/logout", "/static/", "/healthz")
 # Страницы, которые открываются и без подключённой Яндекс.Музыки.
 NO_MUSIC_PATHS = ("/connect", "/chordbook")
+# Адрес ссылки с QR-кода, по которой телефон получает уже подключённую Музыку.
+PHONE_PATH = "/connect/phone"
+# Куда вернуть человека после входа через Яндекс ID (только ссылка для телефона).
+NEXT_COOKIE = "yachords_next"
 
 
 @app.middleware("http")
@@ -52,19 +57,28 @@ async def require_login(request: Request, call_next):
     """Пускает на страницы сайта только вошедших и решает, чьи плейлисты им показывать."""
     request.state.login = None
     request.state.can_logout = False
+    request.state.music = None
     path = request.url.path
     if path.startswith(PUBLIC_PATHS):
         return await call_next(request)
     login = auth.current_login(request.cookies.get(auth.COOKIE_NAME))
     if login is None:
+        if path == PHONE_PATH:
+            # Ссылку с QR-кода откроем снова сразу после входа.
+            return RedirectResponse(f"/login?next={quote(str(request.url.path) + '?' + request.url.query)}", status_code=303)
         return RedirectResponse("/login", status_code=303)
     request.state.login = login
     request.state.can_logout = auth.login_required()
-    if auth.is_owner(login):
+    token = music_link.unseal(login, request.cookies.get(music_link.COOKIE_NAME))
+    if token:
+        # Человек подключил свою Музыку: показываем его плейлисты.
+        yandex.use_token(token, settings_allowed=False)
+        request.state.music = "own"
+    elif auth.is_owner(login):
         yandex.use_token(None)
+        request.state.music = "settings"
     else:
-        # Друзьям токен владельца из настроек не достаётся. Свою Музыку они подключат
-        # на следующем шаге, а пока видят страницу-заглушку и справочник.
+        # Друзьям токен владельца из настроек не достаётся никогда.
         yandex.use_token(None, settings_allowed=False)
         if not path.startswith(NO_MUSIC_PATHS):
             return RedirectResponse("/connect", status_code=303)
@@ -81,13 +95,25 @@ def _set_cookie(request: Request, response: Response, name: str, value: str, max
     response.set_cookie(name, value, max_age=max_age, httponly=True, samesite="lax", secure=_is_https(request))
 
 
+def _site_url(request: Request) -> str:
+    """Адрес сайта, например https://yachords.onrender.com."""
+    scheme = "https" if _is_https(request) else "http"
+    return f"{scheme}://{request.url.netloc}"
+
+
 def _callback_url(request: Request) -> str:
     """Адрес, на который Яндекс ID вернёт человека после входа.
 
     Он должен в точности совпадать с Redirect URI в настройках приложения на oauth.yandex.ru.
     """
-    scheme = "https" if _is_https(request) else "http"
-    return f"{scheme}://{request.url.netloc}/auth/yandex/callback"
+    return f"{_site_url(request)}/auth/yandex/callback"
+
+
+def _safe_next(value: Optional[str]) -> Optional[str]:
+    """Куда вернуть человека после входа: только на ссылку для телефона, никуда больше."""
+    if value and value.startswith(PHONE_PATH + "?"):
+        return value
+    return None
 
 
 def _error(
@@ -108,8 +134,16 @@ def _error(
 
 
 @app.exception_handler(yandex.TokenError)
-async def token_error(request: Request, exc: yandex.TokenError) -> HTMLResponse:
-    """Токен Яндекса не задан или истёк: показываем, как получить новый."""
+async def token_error(request: Request, exc: yandex.TokenError) -> Response:
+    """Токен Яндекса не задан или истёк: показываем, как получить новый.
+
+    Кто подключал Музыку сам, тот попадает на страницу подключения, чтобы вставить новый токен.
+    Владельцу с токеном из настроек показывается инструкция для Render.
+    """
+    if getattr(request.state, "music", None) != "settings":
+        response = RedirectResponse("/connect?expired=1", status_code=303)
+        response.delete_cookie(music_link.COOKIE_NAME)
+        return response
     return _error(
         request,
         "Токен истёк",
@@ -175,10 +209,16 @@ LOGIN_ERRORS = {
 def _login_page(request: Request, error: str = "", login: str = "", status: int = 200) -> Response:
     """Страница входа: кнопка Яндекс ID или поле пароля, смотря что настроено."""
     message = LOGIN_ERRORS.get(error, "").format(login=login)
+    next_url = _safe_next(request.query_params.get("next"))
     return templates.TemplateResponse(
         request,
         "login.html",
-        {"yandex_id": yandex_id.configured(), "failed": False, "message": message},
+        {
+            "yandex_id": yandex_id.configured(),
+            "failed": False,
+            "message": message,
+            "next": quote(next_url) if next_url else "",
+        },
         status_code=status,
     )
 
@@ -214,6 +254,9 @@ def yandex_login(request: Request) -> Response:
     state = secrets.token_urlsafe(16)
     response = RedirectResponse(yandex_id.authorize_url(_callback_url(request), state), status_code=303)
     _set_cookie(request, response, auth.STATE_COOKIE, state, 600)
+    next_url = _safe_next(request.query_params.get("next"))
+    if next_url:
+        _set_cookie(request, response, NEXT_COOKIE, next_url, 600)
     return response
 
 
@@ -237,7 +280,8 @@ def yandex_callback(request: Request, code: str = "", state: str = "", error: st
         logger.info("Вход отклонён: логина нет в списке друзей")
         return _login_page(request, "not_allowed", login=login, status=403)
     logger.info("Вход через Яндекс ID выполнен")
-    response = RedirectResponse("/", status_code=303)
+    response = RedirectResponse(_safe_next(request.cookies.get(NEXT_COOKIE)) or "/", status_code=303)
+    response.delete_cookie(NEXT_COOKIE)
     _set_cookie(request, response, auth.COOKIE_NAME, auth.make_session(login), auth.COOKIE_MAX_AGE)
     response.delete_cookie(auth.STATE_COOKIE)
     return response
@@ -245,18 +289,95 @@ def yandex_callback(request: Request, code: str = "", state: str = "", error: st
 
 @app.get("/logout")
 def logout() -> Response:
-    """Выход: забываем cookie входа."""
+    """Выход: забываем cookie входа и подключённую Музыку на этом устройстве."""
     response = RedirectResponse("/login", status_code=303)
     response.delete_cookie(auth.COOKIE_NAME)
+    response.delete_cookie(music_link.COOKIE_NAME)
     return response
+
+
+CONNECT_ERRORS = {
+    "no_token": "Не нашли токен в том, что вы вставили. Скопируйте весь адрес страницы, на которую перекинул Яндекс, "
+    "он начинается с https://music.yandex.ru/ и содержит access_token=.",
+    "rejected": "Яндекс.Музыка не приняла этот токен. Получите новый по кнопке в шаге 1 и вставьте ещё раз.",
+    "yandex_down": "Яндекс.Музыка сейчас не ответила. Попробуйте ещё раз через минуту.",
+    "no_key": "Сайт пока не настроен для подключения Музыки. Напишите владельцу сайта.",
+    "phone_link": "Ссылка для телефона устарела или открыта под другим аккаунтом Яндекса. "
+    "Откройте на компьютере страницу «Моя Музыка» и отсканируйте новый QR-код.",
+}
+
+
+def _connect_page(request: Request, error: str = "", status: int = 200) -> Response:
+    """Страница «Моя Музыка»: инструкция и поле для токена или, если подключено, QR-код для телефона."""
+    login = request.state.login
+    connected = request.state.music == "own"
+    phone_url = qr = None
+    if connected:
+        token = music_link.unseal(login, request.cookies.get(music_link.COOKIE_NAME))
+        sealed = music_link.seal(login, token) if token else None
+        if sealed:
+            phone_url = f"{_site_url(request)}{PHONE_PATH}?t={quote(sealed)}"
+            qr = music_link.qr_svg(phone_url)
+    return templates.TemplateResponse(
+        request,
+        "connect.html",
+        {
+            "login": login if login != auth.OWNER else None,
+            "connected": connected,
+            "uses_settings": request.state.music == "settings",
+            "expired": request.query_params.get("expired") == "1",
+            "error": CONNECT_ERRORS.get(error, ""),
+            "token_url": yandex.TOKEN_URL,
+            "phone_url": phone_url,
+            "qr": qr,
+        },
+        status_code=status,
+    )
 
 
 @app.get("/connect", response_class=HTMLResponse)
 def connect(request: Request) -> Response:
-    """Страница для друзей, пока подключение своей Яндекс.Музыки не готово."""
-    if request.state.login and auth.is_owner(request.state.login):
-        return RedirectResponse("/", status_code=303)
-    return templates.TemplateResponse(request, "connect.html", {"login": request.state.login})
+    """Страница подключения своей Яндекс.Музыки с пошаговой инструкцией."""
+    return _connect_page(request)
+
+
+@app.post("/connect", response_class=HTMLResponse)
+def connect_save(request: Request, token_text: str = Form("")) -> Response:
+    """Принимает вставленный адрес или токен, проверяет его у Яндекса и запоминает в браузере."""
+    token = music_link.extract_token(token_text)
+    if token is None:
+        return _connect_page(request, "no_token", 400)
+    try:
+        if not yandex.verify_token(token):
+            return _connect_page(request, "rejected", 400)
+    except yandex.YandexUnavailableError:
+        return _connect_page(request, "yandex_down", 503)
+    sealed = music_link.seal(request.state.login, token)
+    if sealed is None:
+        return _connect_page(request, "no_key", 500)
+    logger.info("Пользователь подключил свою Яндекс.Музыку")
+    response = RedirectResponse("/", status_code=303)
+    _set_cookie(request, response, music_link.COOKIE_NAME, sealed, music_link.COOKIE_MAX_AGE)
+    return response
+
+
+@app.post("/connect/disconnect")
+def connect_remove() -> Response:
+    """Отключает Музыку на этом устройстве: забываем токен из cookie."""
+    response = RedirectResponse("/connect", status_code=303)
+    response.delete_cookie(music_link.COOKIE_NAME)
+    return response
+
+
+@app.get(PHONE_PATH)
+def connect_phone(request: Request, t: str = "") -> Response:
+    """Ссылка с QR-кода: переносит подключённую Музыку на телефон без повторной возни с токеном."""
+    token = music_link.unseal(request.state.login, t, max_age=music_link.TRANSFER_SECONDS)
+    if token is None:
+        return _connect_page(request, "phone_link", 400)
+    response = RedirectResponse("/", status_code=303)
+    _set_cookie(request, response, music_link.COOKIE_NAME, t, music_link.COOKIE_MAX_AGE)
+    return response
 
 
 @app.get("/", response_class=HTMLResponse)

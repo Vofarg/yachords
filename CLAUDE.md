@@ -55,6 +55,7 @@
 │ ├── main.py # FastAPI, роуты, страницы ошибок
 │ ├── auth.py # кто вошёл: Яндекс ID или пароль APP_PASSWORD
 │ ├── yandex_id.py # вход через Яндекс ID (только логин)
+│ ├── music_link.py # токен Музыки каждого человека в зашифрованной cookie, QR для телефона
 │ ├── yandex.py # обёртка над yandex-music
 │ ├── chords/
 │ │ ├── parser.py # парсинг AmDm, MyChords, UG
@@ -84,6 +85,7 @@
 ├── test_chords.py
 ├── test_pages.py
 ├── test_login.py
+├── test_connect.py
 └── test_yandex.py
 ```
 
